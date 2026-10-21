@@ -161,7 +161,7 @@
       <div class="section-heading"><div><p class="eyebrow">OVERVIEW</p><h2>Service health</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored services</span></div>
       <div class="service-list">
         {#if !data}
-          <Card variant="outlined"><div class="loading"><LoadingIndicator /> <span>Checking services…</span></div></Card>
+          <Card variant="outlined"><div class="loading"><span>Checking services…</span></div></Card>
         {:else if !data.services?.length}
           <Card variant="outlined"><p class="empty">No live results available. Check the API configuration and try again.</p></Card>
         {:else}
@@ -172,7 +172,7 @@
                 <div class="service-main">
                   <div class="service-name-line"><span class="status-dot small {service.status || 'unknown'}"></span><h3>{service.name}</h3><span class="status-word {service.status || 'unknown'}">{service.statusLabel || "Unknown"}</span></div>
                   <p class="service-description">{service.description}</p>
-                  <a class="service-url" href={service.url} target="_blank" rel="noreferrer">{service.url} <span aria-hidden="true">↗</span></a>
+                  <a class="service-url m3-layer" href={service.url} target="_blank" rel="noreferrer">{service.url} <span aria-hidden="true">↗</span></a>
                 </div>
                 <div class="service-metrics">
                   <div><span class="metric-label">Response time</span><strong>{latency(service.latest?.responseTimeMs)}</strong></div>
@@ -278,7 +278,7 @@
     {/if}
   </main>
 
-  <footer><span class="footer-brand">adi.rest</span><span>Live checks, recorded history, no guesswork.</span><a href="/api/status">Status API ↗</a></footer>
+  <footer><span class="footer-brand">adi.rest</span><span>Live checks, recorded history, no guesswork.</span><a class="m3-layer" href="/api/status">Status API ↗</a></footer>
 </div>
 
 <style>
