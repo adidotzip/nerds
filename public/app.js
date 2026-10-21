@@ -14,8 +14,9 @@ function setStatus(element, status) { element.className = element.className.repl
 function uptimeText(stats) { return stats?.percentage == null ? (stats?.checks ? "Collecting data" : "No history yet") : `${stats.percentage.toFixed(2)}% · 24h uptime`; }
 function renderService(service) {
   const node = template.content.firstElementChild.cloneNode(true);
-  node.href = `/api/status/${encodeURIComponent(service.id)}`;
-  node.setAttribute("aria-label", `${service.name}, ${service.statusLabel}. Open service JSON status`);
+  node.href = `#service-${encodeURIComponent(service.id)}`;
+  node.id = `service-${service.id}`;
+  node.setAttribute("aria-label", `${service.name}, ${service.statusLabel}. Service detail and history`);
   $(".service-name", node).textContent = service.name; $(".service-description", node).textContent = service.description;
   $(".service-latency", node).textContent = formatLatency(service.latest?.responseTimeMs);
   $(".service-uptime", node).textContent = uptimeText(service.uptime?.["24h"]);
@@ -31,6 +32,26 @@ function renderService(service) {
     bar.setAttribute("aria-label", bar.title); bars.append(bar);
   }
   $(".uptime-label", node).textContent = slice.length ? "Recent checks" : "Awaiting checks";
+  node.addEventListener("click", event => {
+    if (event.target.closest(".uptime-bar")) return;
+    event.preventDefault();
+    const detail = document.getElementById(`detail-${service.id}`);
+    if (detail) { detail.remove(); return; }
+    const panel = document.createElement("section"); panel.className = "service-detail"; panel.id = `detail-${service.id}`;
+    panel.setAttribute("aria-label", `${service.name} details`);
+    const heading = document.createElement("h3"); heading.textContent = `${service.name} · recent performance`;
+    const metrics = document.createElement("div"); metrics.className = "detail-stats";
+    for (const period of ["24h", "7d", "30d"]) {
+      const stat = document.createElement("div"); stat.className = "detail-stat";
+      const value = service.uptime?.[period]?.percentage;
+      const strong = document.createElement("strong"); strong.textContent = value == null ? "Collecting data" : `${value.toFixed(2)}%`;
+      const label = document.createElement("span"); label.textContent = `${period} observed uptime`;
+      stat.append(strong, label); metrics.append(stat);
+    }
+    const description = document.createElement("p");
+    description.textContent = `Last successful check: ${formatDate(service.lastSuccessfulCheck)}. Last failed check: ${formatDate(service.lastFailedCheck)}. ${service.latest?.error || ""}`;
+    panel.append(heading, metrics, description); node.insertAdjacentElement("afterend", panel);
+  });
   return node;
 }
 function renderStatus(data) {
@@ -47,7 +68,12 @@ async function loadDomain() {
     const response = await fetch("/api/domain-health", { cache: "no-store" });
     if (!response.ok) throw new Error("No domain data");
     const data = await response.json();
-    if (data.expirationDate && !data.stale) {
+    if (data.stale) {
+      $("#domain-title").textContent = "Domain data is stale";
+      $("#domain-description").textContent = "No fresh registration data is available. The countdown is withheld until a date is verified.";
+      $("#domain-days").textContent = "—";
+      $("#domain-days-label").textContent = "days remaining";
+    } else if (data.expirationDate) {
       const date = new Date(data.expirationDate), days = data.daysRemaining;
       $("#domain-title").textContent = "Registration expiration date found";
       $("#domain-description").textContent = `Reported expiration: ${date.toLocaleDateString(undefined, { dateStyle: "long", timeZone: "UTC" })}. This is separate from whether the website responds over HTTP.`;
@@ -84,7 +110,12 @@ async function loadIncidents() {
 async function refresh() {
   try {
     const response = await fetch("/api/status", { cache: "no-store" }); if (!response.ok) throw new Error("Status request failed");
-    renderStatus(await response.json());
+    const data = await response.json();
+    if (!data.updatedAt || Date.now() - Date.parse(data.updatedAt) > 180000) {
+      data.status = "unknown";
+      data.services = data.services.map(service => ({ ...service, status: "unknown", statusLabel: "Unknown" }));
+    }
+    renderStatus(data);
   } catch {
     $("#overall-label").textContent = "Status Temporarily Unavailable"; $("#overall-title").textContent = "Status Temporarily Unavailable";
     $("#overall-description").textContent = "The status service could not be reached. Try again shortly."; $("#updated-at").textContent = "Live data unavailable";
