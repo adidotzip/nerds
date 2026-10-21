@@ -7,6 +7,6 @@
     "crons": ["* * * * *"]
   },
   "vars": {
-    "MONITOR_API_URL": "https://adi-rest-status.YOUR-SUBDOMAIN.workers.dev"
+    "MONITOR_API_URL": "https://status.adi.rest"
   }
 }
