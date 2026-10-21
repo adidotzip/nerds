@@ -23,7 +23,9 @@
     "vite": "^7.3.6",
     "@ktibow/iconset-material-symbols": "^0.0.1764827375",
     "mongodb": "^6.21.0",
-    "@sveltejs/adapter-cloudflare": "^7.2.5"
+    "@sveltejs/adapter-cloudflare": "^7.2.5",
+    "@animate-ui/icons-hugeicons": "^0.1.0",
+    "@animate-ui/icons": "^0.1.0"
   },
   "devDependencies": {
     "svelte-check": "^4.7.6",
