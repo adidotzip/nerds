@@ -21,7 +21,6 @@
     "m3-svelte": "^7.2.1",
     "svelte": "^5.40.0",
     "vite": "^7.3.6",
-    "vite-plugin-functions-mixins": "^0.4.1",
     "@ktibow/iconset-material-symbols": "^0.0.1764827375",
     "mongodb": "^6.21.0",
     "@sveltejs/adapter-cloudflare": "^7.2.5"
