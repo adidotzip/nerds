@@ -1,43 +1,90 @@
 <script>
   import { onMount } from "svelte";
-  import { Button, Card, Chip } from "m3-svelte";
+  import { Button, Card, Chip, LoadingIndicator } from "m3-svelte";
 
   let data = $state(null);
   let domain = $state(null);
+  let histories = $state({});
+  let incidents = $state([]);
   let failed = $state(false);
   let dark = $state(false);
   let selected = $state("24h");
+  let refreshing = $state(false);
 
-  const statusText = {
-    up: "All systems operational",
-    partial: "Partial service disruption",
-    degraded: "Degraded performance",
-    down: "Service disruption",
-    unknown: "Status temporarily unavailable"
-  };
+  const periods = [{ label: "24 hours", value: "24h" }, { label: "7 days", value: "7d" }, { label: "30 days", value: "30d" }];
+  const statusText = { up: "All systems operational", partial: "Partial service disruption", degraded: "Degraded performance", down: "Major outage", unknown: "Status temporarily unavailable" };
   const time = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Awaiting first check";
-  const latency = (value) => Number.isFinite(value) ? Math.round(value) + " ms" : "Not available";
+  const latency = (value) => Number.isFinite(value) ? Math.round(value) + " ms" : "—";
+  const percent = (value) => Number.isFinite(value) ? value.toFixed(2) + "%" : "Collecting data";
+  const periodMs = (period) => period === "7d" ? 7 * 86400000 : period === "30d" ? 30 * 86400000 : 86400000;
+  const points = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs) && item.success);
+  const pathFor = (history, width = 560, height = 88) => {
+    const values = points(history);
+    if (values.length < 2) return "";
+    const max = Math.max(...values.map((p) => p.responseTimeMs), 1);
+    return values.map((p, i) => `${i ? "L" : "M"} ${(i / (values.length - 1)) * width} ${height - (p.responseTimeMs / max) * (height - 8) - 4}`).join(" ");
+  };
+  const bars = (history) => {
+    const list = history || [];
+    if (!list.length) return [];
+    const bucketCount = 60;
+    const grouped = Array.from({ length: bucketCount }, (_, i) => {
+      const start = Math.floor(i * list.length / bucketCount);
+      const end = Math.max(start + 1, Math.floor((i + 1) * list.length / bucketCount));
+      const group = list.slice(start, end);
+      if (!group.length) return { status: "unknown", count: 0 };
+      return { status: group.some((p) => !p.success) ? "down" : group.some((p) => p.status === "degraded") ? "degraded" : "up", count: group.length, from: group[0]?.timestamp, to: group[group.length - 1]?.timestamp, checks: group.length };
+    });
+    return grouped;
+  };
 
+  async function fetchJson(url) {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error("Request failed");
+    return response.json();
+  }
   async function refresh() {
+    refreshing = true;
     try {
-      const response = await fetch("/api/status", { cache: "no-store" });
-      if (!response.ok) throw new Error("Status unavailable");
-      data = await response.json();
+      const [status, incidentData, domainData] = await Promise.all([
+        fetchJson("/api/status"),
+        fetchJson("/api/incidents?period=" + selected).catch(() => ({ incidents: [] })),
+        fetchJson("/api/domain-health").catch(() => null)
+      ]);
+      data = status;
+      incidents = incidentData.incidents || [];
+      domain = domainData;
       failed = false;
+      const results = await Promise.all((status.services || []).map(async (service) => {
+        try {
+          const result = await fetchJson("/api/history/" + encodeURIComponent(service.id) + "?period=" + selected);
+          return [service.id, result];
+        } catch { return [service.id, { history: [], uptime: {} }]; }
+      }));
+      histories = Object.fromEntries(results);
     } catch {
       failed = true;
       data = { status: "unknown", updatedAt: null, services: [] };
-    }
-    try {
-      const response = await fetch("/api/domain-health", { cache: "no-store" });
-      if (response.ok) domain = await response.json();
-    } catch { domain = null; }
+    } finally { refreshing = false; }
   }
-  function toggleTheme() {
-    dark = !dark;
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    try { localStorage.setItem("adi-theme", dark ? "dark" : "light"); } catch {}
+  async function toggleTheme(event) {
+    const next = !dark;
+    const x = event?.clientX ?? window.innerWidth - 48;
+    const y = event?.clientY ?? 36;
+    const apply = () => {
+      dark = next;
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+      try { localStorage.setItem("adi-theme", dark ? "dark" : "light"); } catch {}
+    };
+    if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      document.documentElement.style.setProperty("--theme-x", x + "px");
+      document.documentElement.style.setProperty("--theme-y", y + "px");
+      const transition = document.startViewTransition(apply);
+      try { await transition.ready; } catch {}
+    } else apply();
   }
+  async function changePeriod(period) { selected = period; await refresh(); }
+
   onMount(() => {
     try {
       const saved = localStorage.getItem("adi-theme");
@@ -45,115 +92,142 @@
     } catch {}
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     refresh();
-    const timer = setInterval(refresh, 30000);
+    const timer = setInterval(refresh, 60000);
     return () => clearInterval(timer);
   });
 </script>
 
 <svelte:head>
   <title>Status · adi.rest</title>
-  <meta name="description" content="Live availability for adi.rest services." />
+  <meta name="description" content="Live service status, historical uptime and response-time graphs for adi.rest." />
 </svelte:head>
 
 <div class="shell">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="adi.rest status home"><span class="brand-icon">a.</span><span>adi.rest</span></a>
-    <div class="top-actions"><span class="overline">SYSTEM STATUS</span><Button variant="outlined" size="s" onclick={toggleTheme}>{dark ? "Light theme" : "Dark theme"}</Button></div>
+    <a class="brand" href="/" aria-label="adi.rest status home">adi.rest</a>
+    <div class="top-actions">
+      <span class="live-indicator"><span></span> Live monitoring</span>
+      <button class="theme-toggle" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Light theme" : "Dark theme"}>
+        {#if dark}
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+        {:else}
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.1A8.5 8.5 0 0 1 8.9 3.8 8.6 8.6 0 1 0 20.2 15.1Z"/></svg>
+        {/if}
+      </button>
+    </div>
   </header>
 
   <main>
     <section class="hero">
       <div class="status-line"><span class="status-dot {data?.status || 'unknown'}"></span><span>{statusText[data?.status || "unknown"]}</span></div>
-      <h1>{data?.status === "up" ? "Everything is in its place." : data?.status === "down" || data?.status === "partial" ? "A service needs attention." : "A clear view of what’s up."}</h1>
-      <p class="intro">{failed ? "We couldn't reach the live status endpoint. No status is being assumed." : "The services behind adi.rest, checked live. Just the signal, no noise."}</p>
-      <div class="refresh"><span>Updated {time(data?.updatedAt)}</span><span class="dot-sep">•</span><span>Live checks · 30 second refresh</span><Button variant="text" size="s" onclick={refresh}>Refresh now</Button></div>
+      <h1>{data?.status === "up" ? "Everything is running smoothly." : data?.status === "down" || data?.status === "partial" ? "We're investigating a service disruption." : data?.status === "degraded" ? "Some services are running slowly." : "Service status at a glance."}</h1>
+      <div class="hero-meta"><span>{failed ? "Status data could not be loaded." : "Monitoring the services that power adi.rest."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
     </section>
 
-    <section class="section">
-      <div class="section-title"><div><p class="eyebrow">LIVE MONITORING</p><h2>Services</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored targets</span></div>
+    <section class="section summary-section">
+      <div class="section-heading"><div><p class="eyebrow">OVERVIEW</p><h2>Service health</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored services</span></div>
       <div class="service-list">
         {#if !data}
-          <Card variant="outlined"><p>Checking configured services…</p></Card>
-        {:else if data.services.length === 0}
-          <Card variant="outlined"><p>Live results are unavailable. Try refreshing in a moment.</p></Card>
+          <Card variant="outlined"><div class="loading"><LoadingIndicator /> <span>Checking services…</span></div></Card>
+        {:else if !data.services?.length}
+          <Card variant="outlined"><p class="empty">No live results available. Check the API configuration and try again.</p></Card>
         {:else}
           {#each data.services as service (service.id)}
+            {@const historyData = histories[service.id]}
             <Card variant="outlined">
-              <div class="service-row">
-                <div class="service-icon" aria-hidden="true">{service.id === "adi-rest" ? "language" : service.id === "lyrics-api" ? "data_object" : "public"}</div>
-                <div class="service-info"><h3>{service.name}</h3><p>{service.description}</p><a href={service.url} target="_blank" rel="noreferrer">{service.url} ↗</a></div>
-                <div class="metric"><strong>{latency(service.latest?.responseTimeMs)}</strong><span>Response time</span></div>
-                <div class="service-state"><Chip variant="general" disabled>{service.statusLabel || "Unknown"}</Chip><span class="checked">Checked {time(service.latest?.timestamp)}</span></div>
-              </div>
+              <article class="service-card">
+                <div class="service-main">
+                  <div class="service-name-line"><span class="status-dot small {service.status || 'unknown'}"></span><h3>{service.name}</h3><span class="status-word {service.status || 'unknown'}">{service.statusLabel || "Unknown"}</span></div>
+                  <p class="service-description">{service.description}</p>
+                  <a class="service-url" href={service.url} target="_blank" rel="noreferrer">{service.url} <span aria-hidden="true">↗</span></a>
+                </div>
+                <div class="service-metrics">
+                  <div><span class="metric-label">Response time</span><strong>{latency(service.latest?.responseTimeMs)}</strong></div>
+                  <div><span class="metric-label">HTTP status</span><strong>{service.latest?.statusCode ?? "—"}</strong></div>
+                  <div><span class="metric-label">24h uptime</span><strong>{percent(historyData?.uptime?.["24h"]?.percentage)}</strong></div>
+                </div>
+                <div class="uptime-block">
+                  <div class="uptime-title"><span>Uptime history</span><span>{historyData?.history?.length ? historyData.history.length + " checks" : "Collecting data"}</span></div>
+                  <div class="uptime-bars" aria-label="Historical check results">
+                    {#each bars(historyData?.history) as bar, i}
+                      <span class="uptime-bar {bar.status}" title={bar.from ? `${bar.status}: ${time(bar.from)} – ${time(bar.to)}` : "No recorded check"}></span>
+                    {/each}
+                  </div>
+                  <div class="bar-labels"><span>{selected === "24h" ? "24 hours ago" : selected === "7d" ? "7 days ago" : "30 days ago"}</span><span>Now</span></div>
+                </div>
+                <div class="latency-graph">
+                  <div class="uptime-title"><span>Response time</span><span>{historyData?.history?.length ? "milliseconds" : "No history yet"}</span></div>
+                  {#if points(historyData?.history).length > 1}
+                    <svg viewBox="0 0 560 88" preserveAspectRatio="none" role="img" aria-label={"Response time graph for " + service.name}>
+                      <path class="graph-grid" d="M0 22H560 M0 44H560 M0 66H560" />
+                      <path class="graph-line" d={pathFor(historyData.history)} />
+                    </svg>
+                  {:else}
+                    <div class="graph-empty">A graph will appear as real monitoring history accumulates.</div>
+                  {/if}
+                </div>
+                <div class="service-foot"><span>Last checked {time(service.latest?.timestamp)}</span><span>Last successful {time(service.lastSuccessfulCheck)}</span>{#if service.lastFailedCheck}<span>Last failed {time(service.lastFailedCheck)}</span>{/if}</div>
+              </article>
             </Card>
           {/each}
         {/if}
       </div>
     </section>
 
-    <section class="section">
-      <div class="section-title"><div><p class="eyebrow">DOMAIN HEALTH</p><h2>imreallyadi.space</h2></div><Chip variant="general" disabled>Registration</Chip></div>
-      <Card variant="outlined">
-        <div class="domain-row">
-          <div class="domain-copy"><h3>{domain?.expirationDate ? "Configured expiration date" : "Expiration date not verified"}</h3><p>{domain?.expirationDate ? "The date was supplied manually and has not been independently verified. Domain registration and website availability are separate." : "No trustworthy registration date is available. Nothing is guessed."}</p><p class="domain-meta">{domain?.dns ? (domain.dns.ok ? "DNS resolves" : "DNS lookup failed") : "DNS status unavailable"} · {domain?.tls ? (domain.tls.valid ? "HTTPS connection succeeded" : "HTTPS connection failed") : "HTTPS status unavailable"}</p></div>
-          <div class="countdown"><strong>{domain?.daysRemaining ?? "—"}</strong><span>days remaining</span></div>
+    <section class="section history-section">
+      <div class="section-heading"><div><p class="eyebrow">HISTORICAL DATA</p><h2>Uptime & response times</h2></div>
+        <div class="period-switch" aria-label="History time range">
+          {#each periods as period}
+            <button class:active={selected === period.value} onclick={() => changePeriod(period.value)} aria-pressed={selected === period.value}>{period.label}</button>
+          {/each}
         </div>
+      </div>
+      <Card variant="outlined">
+        <div class="history-overview">
+          {#each (data?.services || []) as service (service.id)}
+            <div class="history-row">
+              <div><strong>{service.name}</strong><span>{histories[service.id]?.history?.length || 0} recorded checks</span></div>
+              <div class="history-stat"><span>Uptime</span><strong>{percent(histories[service.id]?.uptime?.[selected]?.percentage)}</strong></div>
+              <div class="history-stat"><span>Average latency</span><strong>{latency(histories[service.id]?.uptime?.[selected]?.averageResponseTimeMs)}</strong></div>
+            </div>
+          {/each}
+          {#if !data?.services?.length}<div class="empty">Historical statistics appear after monitoring records are collected.</div>{/if}
+        </div>
+        <p class="history-note">Only recorded checks count toward uptime. Missing intervals are unknown, not successful.</p>
       </Card>
     </section>
 
-    <section class="section method">
-      <div class="section-title"><div><p class="eyebrow">HOW IT WORKS</p><h2>Simple by design</h2></div></div>
-      <div class="method-grid">
-        <Card variant="outlined"><span class="method-number">01</span><h3>Live HTTP checks</h3><p>Results come from requests to the configured service URLs.</p></Card>
-        <Card variant="outlined"><span class="method-number">02</span><h3>No invented history</h3><p>This deployment shows live results, not fabricated uptime percentages or incidents.</p></Card>
-        <Card variant="outlined"><span class="method-number">03</span><h3>No alerting</h3><p>No notifications, alerts, or database. Just a public status view.</p></Card>
-      </div>
+    <section class="section incidents-section">
+      <div class="section-heading"><div><p class="eyebrow">EVENT LOG</p><h2>Recent incidents</h2></div><span class="subtle">Recorded check failures</span></div>
+      <Card variant="outlined">
+        {#if incidents.length}
+          <div class="incident-list">
+            {#each incidents.slice(0, 12) as incident, i}
+              <div class="incident-row" key={incident._id || incident.timestamp + i}>
+                <span class="incident-mark"></span><div><strong>{incident.serviceName || incident.serviceId}</strong><p>{incident.error || (incident.statusCode ? "HTTP " + incident.statusCode : "Check failed")}</p></div><time>{time(incident.timestamp)}</time>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="empty-incidents"><span class="empty-check">✓</span><strong>No recorded incidents in this period</strong><p>This means no failures are recorded for the selected period, not that unmonitored time was healthy.</p></div>
+        {/if}
+      </Card>
+    </section>
+
+    <section class="section domain-section">
+      <div class="section-heading"><div><p class="eyebrow">REGISTRATION</p><h2>imreallyadi.space</h2></div><Chip variant="general" disabled>Domain health</Chip></div>
+      <Card variant="outlined">
+        <div class="domain-row">
+          <div class="domain-copy"><h3>{domain?.expirationDate ? "Domain expiration" : "Expiration date not verified"}</h3><p>{domain?.expirationDate ? "Configured expiration date: " + new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeZone: "UTC" }).format(new Date(domain.expirationDate)) + ". This date is manually supplied and has not been independently verified." : "No trusted registration date is available. Nothing is guessed."}</p><p class="domain-meta">{domain?.dns ? (domain.dns.ok ? "DNS resolves" : "DNS lookup failed") : "DNS status unavailable"} · {domain?.tls ? (domain.tls.valid ? "HTTPS connection succeeded" : "HTTPS connection failed") : "HTTPS status unavailable"}</p></div>
+          <div class="countdown"><strong>{Number.isFinite(domain?.daysRemaining) ? Math.max(0, domain.daysRemaining) : "—"}</strong><span>{domain?.daysRemaining < 0 ? "days past date" : "days remaining"}</span></div>
+        </div>
+      </Card>
     </section>
   </main>
 
-  <footer><span class="brand-icon small">a.</span><span>Quietly keeping an eye on things.</span><a href="/api/status">Public API ↗</a></footer>
+  <footer><span class="footer-brand">adi.rest</span><span>Live checks, recorded history, no guesswork.</span><a href="/api/status">Status API ↗</a></footer>
 </div>
 
 <style>
-  .shell { width:min(1040px,100%); margin:auto; padding:0 32px; }
-  .topbar { min-height:76px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--m3c-outline-variant); }
-  .brand { display:flex; align-items:center; gap:12px; font-weight:650; letter-spacing:-.03em; }
-  .brand-icon { display:grid; place-items:center; width:32px; height:32px; background:var(--m3c-primary-container); color:var(--m3c-on-primary-container); border-radius:12px 12px 12px 4px; font-size:17px; font-weight:750; }
-  .brand-icon.small { width:24px; height:24px; border-radius:9px 9px 9px 3px; font-size:12px; }
-  .top-actions { display:flex; align-items:center; gap:16px; }
-  .overline,.eyebrow { font-size:11px; font-weight:650; letter-spacing:.12em; color:var(--m3c-on-surface-variant); }
-  .hero { padding:64px 0 50px; border-bottom:1px solid var(--m3c-outline-variant); }
-  .status-line { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; margin-bottom:24px; text-transform:capitalize; }
-  .status-dot { width:10px; height:10px; border-radius:50%; background:var(--m3c-outline); flex-shrink:0; }
-  .status-dot.up { background:#247747; } .status-dot.degraded,.status-dot.partial { background:#89510b; } .status-dot.down { background:var(--m3c-error); }
-  h1 { font-size:clamp(38px,6vw,62px); font-weight:650; letter-spacing:-.055em; line-height:1.05; max-width:750px; margin:0; text-wrap:balance; }
-  .intro { font-size:16px; line-height:1.7; color:var(--m3c-on-surface-variant); max-width:590px; margin:18px 0 24px; }
-  .refresh { display:flex; align-items:center; flex-wrap:wrap; gap:10px; color:var(--m3c-on-surface-variant); font-size:12px; }
-  .dot-sep { color:var(--m3c-outline); }
-  .section { padding-top:42px; }
-  .section-title { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; margin-bottom:18px; }
-  .eyebrow { margin:0 0 7px; font-size:10px; }
-  h2 { margin:0; font-size:26px; letter-spacing:-.04em; font-weight:650; }
-  .subtle { color:var(--m3c-on-surface-variant); font-size:12px; padding-bottom:4px; }
-  .service-list { display:grid; gap:12px; }
-  .service-row { display:grid; grid-template-columns:44px minmax(0,1fr) minmax(100px,.45fr) auto; align-items:center; gap:18px; }
-  .service-icon { display:grid; place-items:center; width:42px; height:42px; border-radius:14px; background:var(--m3c-secondary-container); color:var(--m3c-on-secondary-container); font-size:10px; font-weight:700; overflow-wrap:anywhere; }
-  .service-info h3,.domain-copy h3,.method-grid h3 { margin:0 0 5px; font-size:16px; font-weight:650; letter-spacing:-.02em; }
-  .service-info p,.domain-copy p,.method-grid p { margin:0 0 5px; font-size:12px; color:var(--m3c-on-surface-variant); line-height:1.6; }
-  .service-info a { display:inline-block; font-size:11px; color:var(--m3c-primary); overflow-wrap:anywhere; }
-  .metric strong { display:block; font-size:17px; font-weight:650; font-variant-numeric:tabular-nums; }
-  .metric span,.checked { display:block; margin-top:4px; font-size:11px; color:var(--m3c-on-surface-variant); }
-  .service-state { display:grid; justify-items:end; gap:8px; }
-  .domain-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:28px; }
-  .domain-meta { padding-top:7px; }
-  .countdown { min-width:100px; text-align:right; }
-  .countdown strong { display:block; font-size:32px; font-weight:650; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
-  .countdown span { font-size:11px; color:var(--m3c-on-surface-variant); }
-  .method-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-  .method-number { display:block; font-size:11px; letter-spacing:.08em; color:var(--m3c-primary); margin-bottom:18px; }
-  .method-grid h3 { font-size:14px; }
-  footer { margin-top:50px; min-height:78px; border-top:1px solid var(--m3c-outline-variant); display:flex; align-items:center; gap:10px; color:var(--m3c-on-surface-variant); font-size:12px; }
-  footer a { margin-left:auto; color:var(--m3c-primary); }
-  @media(max-width:700px) { .shell{padding:0 20px}.hero{padding:48px 0 38px}.service-row{grid-template-columns:38px minmax(0,1fr) auto;gap:12px}.service-icon{width:36px;height:36px}.metric{grid-column:2;grid-row:2}.service-state{grid-column:3;grid-row:1/3}.service-info a{max-width:100%}.method-grid{grid-template-columns:1fr}.domain-row{gap:12px}.countdown{min-width:75px}.section{padding-top:34px} }
-  @media(max-width:420px) { .shell{padding:0 14px}.topbar{min-height:68px}.overline{display:none}h1{font-size:38px}.refresh{gap:7px}.service-row{gap:9px}.service-state .checked{max-width:96px;text-align:right;font-size:9px}.countdown strong{font-size:26px} }
+  .shell{width:min(1040px,100%);margin:auto;padding:0 32px}.topbar{min-height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--m3c-outline-variant)}.brand{font-size:20px;font-weight:700;letter-spacing:-.055em}.top-actions{display:flex;align-items:center;gap:20px}.live-indicator{display:flex;align-items:center;gap:8px;color:var(--m3c-on-surface-variant);font-size:12px}.live-indicator>span{width:7px;height:7px;border-radius:50%;background:#258653}.theme-toggle{width:40px;height:40px;border:1px solid var(--m3c-outline-variant);border-radius:50%;display:grid;place-items:center;background:var(--m3c-surface-container-low);color:var(--m3c-on-surface);cursor:pointer}.theme-toggle svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.hero{padding:58px 0 42px;border-bottom:1px solid var(--m3c-outline-variant)}.status-line{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;margin-bottom:22px;text-transform:capitalize}.status-dot{width:10px;height:10px;border-radius:50%;background:var(--m3c-outline);flex-shrink:0}.status-dot.small{width:8px;height:8px}.status-dot.up{background:#258653}.status-dot.degraded,.status-dot.partial{background:#b87917}.status-dot.down{background:var(--m3c-error)}h1{font-size:clamp(36px,5.6vw,58px);font-weight:650;letter-spacing:-.055em;line-height:1.06;max-width:760px;margin:0;text-wrap:balance}.hero-meta{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:24px;color:var(--m3c-on-surface-variant);font-size:12px}.meta-divider{width:3px;height:3px;border-radius:50%;background:var(--m3c-outline)}.section{padding-top:40px}.section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:17px}.eyebrow{font-size:10px;font-weight:650;letter-spacing:.13em;color:var(--m3c-on-surface-variant);margin:0 0 7px}h2{margin:0;font-size:25px;letter-spacing:-.04em;font-weight:650}.subtle{font-size:12px;color:var(--m3c-on-surface-variant);padding-bottom:4px}.service-list{display:grid;gap:12px}.service-card{padding:2px}.service-main{min-width:0}.service-name-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.service-name-line h3{font-size:16px;font-weight:650;margin:0;letter-spacing:-.02em}.status-word{font-size:11px;color:var(--m3c-on-surface-variant);border:1px solid var(--m3c-outline-variant);border-radius:999px;padding:3px 8px}.status-word.up{color:#258653}.status-word.degraded,.status-word.partial{color:#b87917}.status-word.down{color:var(--m3c-error)}.service-description{font-size:12px;color:var(--m3c-on-surface-variant);margin:7px 0 3px}.service-url{font-size:11px;color:var(--m3c-primary);overflow-wrap:anywhere}.service-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:20px 0 18px;margin-top:16px;border-top:1px solid var(--m3c-outline-variant)}.service-metrics>div{display:grid;gap:6px}.metric-label,.history-stat>span{font-size:11px;color:var(--m3c-on-surface-variant)}.service-metrics strong{font-size:17px;font-weight:650;font-variant-numeric:tabular-nums}.uptime-title{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--m3c-on-surface-variant);margin-bottom:9px}.uptime-bars{display:grid;grid-template-columns:repeat(60,minmax(2px,1fr));gap:3px;height:31px}.uptime-bar{border-radius:3px;background:var(--m3c-outline-variant);min-width:0}.uptime-bar.up{background:#2f9660}.uptime-bar.degraded{background:#d39a36}.uptime-bar.down{background:#c94d54}.bar-labels{display:flex;justify-content:space-between;margin-top:7px;color:var(--m3c-on-surface-variant);font-size:10px}.latency-graph{margin-top:22px}.latency-graph svg{width:100%;height:88px;overflow:visible}.graph-grid{fill:none;stroke:var(--m3c-outline-variant);stroke-width:1;stroke-dasharray:3 5}.graph-line{fill:none;stroke:var(--m3c-primary);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.graph-empty{height:72px;display:flex;align-items:center;color:var(--m3c-on-surface-variant);font-size:12px}.service-foot{display:flex;flex-wrap:wrap;gap:8px 18px;border-top:1px solid var(--m3c-outline-variant);padding-top:13px;margin-top:8px;color:var(--m3c-on-surface-variant);font-size:10px}.period-switch{display:flex;gap:3px;padding:3px;border:1px solid var(--m3c-outline-variant);border-radius:999px}.period-switch button{border:0;background:transparent;color:var(--m3c-on-surface-variant);padding:7px 11px;border-radius:999px;font-size:11px;cursor:pointer}.period-switch button.active{background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container)}.history-overview{display:grid}.history-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 150px;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--m3c-outline-variant)}.history-row:first-child{padding-top:0}.history-row:last-child{border-bottom:0;padding-bottom:0}.history-row>div:first-child{display:grid;gap:5px}.history-row strong{font-size:13px;font-weight:650}.history-row>div:first-child span{font-size:11px;color:var(--m3c-on-surface-variant)}.history-stat{display:grid;gap:5px}.history-note{margin:18px 0 0;padding-top:14px;border-top:1px solid var(--m3c-outline-variant);font-size:11px;color:var(--m3c-on-surface-variant);line-height:1.6}.incident-list{display:grid}.incident-row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--m3c-outline-variant)}.incident-row:last-child{border:0;padding-bottom:0}.incident-mark{width:8px;height:8px;border-radius:50%;background:var(--m3c-error);margin-top:5px;flex-shrink:0}.incident-row>div{flex:1;min-width:0}.incident-row strong{font-size:13px}.incident-row p{margin:4px 0 0;font-size:12px;color:var(--m3c-on-surface-variant);overflow-wrap:anywhere}.incident-row time{font-size:10px;color:var(--m3c-on-surface-variant);text-align:right}.empty-incidents,.empty{padding:24px 4px;text-align:center;color:var(--m3c-on-surface-variant);font-size:12px;line-height:1.7}.empty-check{display:grid;place-items:center;width:34px;height:34px;margin:0 auto 12px;border-radius:50%;background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container);font-size:18px}.empty-incidents strong{display:block;color:var(--m3c-on-surface);font-size:13px}.empty-incidents p{max-width:460px;margin:7px auto 0}.domain-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px}.domain-copy h3{font-size:15px;margin:0 0 7px}.domain-copy p{font-size:12px;color:var(--m3c-on-surface-variant);line-height:1.7;margin:0 0 5px}.domain-meta{padding-top:6px}.countdown{text-align:right;min-width:100px}.countdown strong{display:block;font-size:32px;font-weight:650;letter-spacing:-.05em;font-variant-numeric:tabular-nums}.countdown span{font-size:11px;color:var(--m3c-on-surface-variant)}.loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:25px;color:var(--m3c-on-surface-variant);font-size:13px}footer{margin-top:48px;min-height:78px;border-top:1px solid var(--m3c-outline-variant);display:flex;align-items:center;gap:12px;color:var(--m3c-on-surface-variant);font-size:11px}.footer-brand{font-size:14px;font-weight:700;letter-spacing:-.04em;color:var(--m3c-on-surface)}footer a{margin-left:auto;color:var(--m3c-primary)}:root{view-transition-name:none}::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}::view-transition-new(root){clip-path:circle(0 at var(--theme-x,95%) var(--theme-y,30px));animation:theme-reveal .42s ease-out forwards}::view-transition-old(root){z-index:1}@keyframes theme-reveal{to{clip-path:circle(150vmax at var(--theme-x,95%) var(--theme-y,30px))}}@media(max-width:700px){.shell{padding:0 20px}.hero{padding:44px 0 34px}.section{padding-top:32px}.service-metrics{gap:8px}.history-row{grid-template-columns:minmax(0,1fr) 105px 105px;gap:9px}.section-heading{align-items:flex-start;flex-wrap:wrap}.period-switch{max-width:100%}.period-switch button{padding:7px 9px}.domain-row{gap:12px}}@media(max-width:440px){.shell{padding:0 14px}.topbar{min-height:66px}.live-indicator{font-size:10px}.top-actions{gap:10px}.hero{padding-top:38px}h1{font-size:36px}.hero-meta{gap:7px}.service-metrics strong{font-size:15px}.service-foot{gap:7px 12px}.history-row{grid-template-columns:minmax(0,1fr) 86px 86px}.history-row strong{font-size:11px}.history-row>div:first-child span,.history-stat>span{font-size:10px}.period-switch button{font-size:10px;padding:7px}.countdown strong{font-size:26px}.countdown{min-width:70px}.uptime-bars{gap:2px;height:25px}footer{flex-wrap:wrap;padding:16px 0}footer a{margin-left:auto}}
 </style>
