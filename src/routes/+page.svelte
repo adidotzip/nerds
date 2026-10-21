@@ -208,7 +208,8 @@
     </section>
 
       </div>
-    {#if activeTab === "history"}
+    {/if}
+    {#if activeTab === "history"
       <div class="tab-panel" transition:sharedAxisTransition={{ direction: "X", rightSeam: true }}>
     <section class="section history-section">
       <div class="section-heading"><div><p class="eyebrow">HISTORICAL DATA</p><h2>Uptime & response times</h2></div>
@@ -240,7 +241,8 @@
     </section>
 
       </div>
-    {#if activeTab === "incidents"}
+    {/if}
+    {#if activeTab === "incidents"
       <div class="tab-panel" transition:sharedAxisTransition={{ direction: "X", rightSeam: true }}>
     <section class="section incidents-section">
       <div class="section-heading"><div><p class="eyebrow">EVENT LOG</p><h2>Recent incidents</h2></div><span class="subtle">Recorded check failures</span></div>
@@ -260,7 +262,8 @@
     </section>
 
       </div>
-    {#if activeTab === "domain"}
+    {/if}
+    {#if activeTab === "domain"
       <div class="tab-panel" transition:sharedAxisTransition={{ direction: "X", rightSeam: true }}>
     <section class="section domain-section">
       <div class="section-heading"><div><p class="eyebrow">REGISTRATION</p><h2>imreallyadi.space</h2></div><Chip variant="general" disabled>Domain health</Chip></div>
