@@ -1,7 +1,8 @@
 <script>
   import { onMount } from "svelte";
   import { Button, Card, Chip, LoadingIndicator } from "m3-svelte";
-  import { SunMedium, Moon02 } from "@animate-ui/icons-hugeicons";
+  import SunMedium from "$lib/components/animate-ui/icons/hugeicons/sun-medium.svelte";
+  import Moon02 from "$lib/components/animate-ui/icons/hugeicons/moon-02.svelte";
 
   let data = $state(null);
   let domain = $state(null);
@@ -132,9 +133,9 @@
       <span class="live-indicator"><span></span> Live monitoring</span>
       <button class="theme-toggle" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Light theme" : "Dark theme"}>
         {#if dark}
-          <SunMedium class="theme-icon sun-icon" aria-hidden="true" />
+          <SunMedium class="theme-icon sun-icon" animateOnHover animateOnTap />
         {:else}
-          <Moon02 class="theme-icon moon-icon" aria-hidden="true" />
+          <Moon02 class="theme-icon moon-icon" animateOnHover animateOnTap />
         {/if}
       </button>
     </div>
