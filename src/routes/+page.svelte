@@ -155,7 +155,7 @@
             <Card variant="outlined">
               <article class="service-card" style={`--item-index:${i}`}>
                 <div class="service-main">
-                  <div class="service-name-line"><span class="status-dot small {service.status || 'unknown'}"></span><h3>{service.name}</h3><span class="status-word {service.status || 'unknown'}">{service.statusLabel || "Unknown"}</span></div>
+                  <div class="service-name-line"><span class="status-dot small {service.status || 'unknown'}"></span><h3>{service.name}</h3>{#if service.status && service.status !== "unknown" && service.statusLabel}<span class="status-word {service.status}">{service.statusLabel}</span>{/if}</div>
                   <p class="service-description">{service.description}</p>
                   <a class="service-url" href={service.url} target="_blank" rel="noreferrer">{service.url} <span aria-hidden="true">↗</span></a>
                 </div>
