@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { Button, Card, Chip, LoadingIndicator, Tabs, ConnectedButtons, sharedAxisTransition } from "m3-svelte";
+  import { Button, Card, Chip, LoadingIndicator, Tabs, ConnectedButtons } from "m3-svelte";
   import "m3-svelte/etc/layer";
 
 
@@ -99,22 +99,12 @@
       data = { status: "unknown", updatedAt: null, services: unknownServiceList(), configurationFallback: true };
     } finally { refreshing = false; initialLoading = false; }
   }
-  async function toggleTheme(event) {
-    const next = !dark;
-    const x = event?.clientX ?? window.innerWidth - 48;
-    const y = event?.clientY ?? 36;
-    const apply = () => {
-      dark = next;
-      document.documentElement.dataset.theme = dark ? "dark" : "light";
-      document.documentElement.style.colorScheme = dark ? "dark" : "light";
-      try { localStorage.setItem("adi-theme", dark ? "dark" : "light"); } catch {}
-    };
-    if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      document.documentElement.style.setProperty("--theme-x", x + "px");
-      document.documentElement.style.setProperty("--theme-y", y + "px");
-      const transition = document.startViewTransition(apply);
-      try { await transition.ready; } catch {}
-    } else apply();
+  function toggleTheme() {
+    dark = !dark;
+    const root = document.documentElement;
+    root.dataset.theme = dark ? "dark" : "light";
+    root.style.colorScheme = dark ? "dark" : "light";
+    try { localStorage.setItem("adi-theme", dark ? "dark" : "light"); } catch {}
   }
   async function changePeriod(period) { selected = period; await refresh(); }
 
@@ -147,13 +137,7 @@
     <a class="brand m3-layer" href="/" aria-label="adi.rest status home">adi.rest</a>
     <div class="top-actions">
       <span class="live-indicator"><span></span> Live monitoring</span>
-      <button class="theme-toggle m3-layer" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Light theme" : "Dark theme"}>
-        {#if dark}
-          <svg class="theme-icon sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
-        {:else}
-          <svg class="theme-icon moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.1A8.5 8.5 0 0 1 8.9 3.8 8.6 8.6 0 1 0 20.2 15.1Z"/></svg>
-        {/if}
-      </button>
+      <button class="theme-toggle m3-layer" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Switch to light theme" : "Switch to dark theme"}><svg class="theme-icon contrast-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" class="contrast-fill"/></svg></button>
     </div>
   </header>
 
@@ -166,7 +150,7 @@
     </section>
 
     {#if activeTab === "overview"}
-      <div class="tab-panel" transition:sharedAxisTransition={{ direction: "X", rightSeam: true }}>
+      <div class="tab-panel">
     <section class="section summary-section">
       <div class="section-heading"><div><p class="eyebrow">OVERVIEW</p><h2>Service health</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored services</span></div>
       <div class="service-list">
