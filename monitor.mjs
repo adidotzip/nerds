@@ -126,6 +126,8 @@ async function appendIncident(service, event, check) {
 async function runChecks() {
   if (running) return { skipped: true, reason: "previous check still running" };
   running = true;
+  // Create the storage directory before creating the lock file on a fresh install.
+  await mkdir(storageDir, { recursive: true, mode: 0o700 });
   const release = await acquireLock();
   if (!release) {
     running = false;
