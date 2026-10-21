@@ -1,12 +1,12 @@
 # adi.rest Status
 
-A minimalist SvelteKit status page for the configured adi.rest services. Hosted on Cloudflare Workers, with MongoDB for real monitoring history. No notifications or alerts are implemented. Status, uptime, history, and incidents are based on recorded checks only.
+A minimalist SvelteKit status page for adi.rest services, deployed to Cloudflare Workers. No notifications or alerts are implemented. Status, uptime, history, and incidents must be based on real recorded checks only.
 
-## Deploy the web app to Cloudflare Workers
+## Deploy to Cloudflare Workers
 
-Requirements: Node.js 22+, a Cloudflare account, and a MongoDB connection string reachable from Cloudflare Workers.
+Requirements: Node.js 22+, a Cloudflare account.
 
-1. Fork or clone this repository and install dependencies:
+1. Clone and install:
 
    ```sh
    git clone https://github.com/adidotzip/nerds.git
@@ -14,7 +14,7 @@ Requirements: Node.js 22+, a Cloudflare account, and a MongoDB connection string
    npm install
    ```
 
-2. Sign in to Cloudflare and build/deploy the app:
+2. Authenticate and deploy the web app:
 
    ```sh
    npx wrangler login
@@ -23,66 +23,34 @@ Requirements: Node.js 22+, a Cloudflare account, and a MongoDB connection string
    npx wrangler deploy
    ```
 
-   The SvelteKit Cloudflare adapter outputs the Worker bundle to `.svelte-kit/cloudflare`. The first deploy may ask you to confirm the Workers project or account details.
-
-3. Add the MongoDB connection string as a Worker secret. Use the exact name `MONGODB_URI`:
+3. Deploy the scheduled monitor Worker:
 
    ```sh
-   npx wrangler secret put MONGODB_URI
    ```
 
-   Paste your MongoDB connection string when prompted. Optionally configure the database name with `npx wrangler secret put MONGODB_DATABASE`. Never commit credentials to Git.
-
-4. Configure the cron endpoint secret on the app Worker:
-
-   ```sh
-   npx wrangler secret put CRON_SECRET
-   ```
-
-   Use a long random value. You will enter the same value for the monitor Worker below.
-
-5. Copy the deployed app's `workers.dev` origin from the Wrangler output. Open `wrangler.monitor.jsonc` and replace `https://adi-rest-status.YOUR-SUBDOMAIN.workers.dev` with that exact origin.
-
-6. Deploy the scheduled monitor Worker and set its secret:
+The monitoring API still requires the storage backend documented in `api/[...route].js`. At present, that implementation uses MongoDB for records and locking. Configure `MONGODB_URI` and `CRON_SECRET` on the app Worker and use the same `CRON_SECRET` on the monitor Worker. Set `MONITOR_API_URL` in `wrangler.monitor.jsonc` to the deployed app origin, then run:
 
    ```sh
    npm run deploy:monitor
    npx wrangler secret put CRON_SECRET --config wrangler.monitor.jsonc
    ```
 
-   Paste the same `CRON_SECRET` value configured on the app Worker. The monitor Worker invokes `GET /api/cron/check` once per minute. If you use a custom domain, you can set `MONITOR_API_URL` to that site's origin instead.
+**Important:** this repo does not yet satisfy a strict no-database requirement. The current API code imports the MongoDB client. To honour a no-database architecture, the API/worker storage must be migrated to append-only JSONL on a platform with persistent writable storage, or another explicitly approved flat-file mechanism. Do not claim local files will persist on Cloudflare Workers without configuring a supported persistent storage target.
 
-## Deploy commands
+## Monitored services
 
-- `npm run check`: type and Svelte checks.
-- `npm run build`: production build.
-- `npx wrangler deploy`: deploy the web app Worker.
-- `npm run deploy:monitor`: deploy the separate scheduled monitor Worker.
-- `npx wrangler tail adi-rest-status`: inspect app Worker logs.
-- `npx wrangler tail adi-rest-status-monitor`: inspect monitor logs.
-
-## Configure monitored services
-
-Edit `services.json` to change the approved URLs, expected HTTP status ranges, request timeouts, and latency thresholds. Only configured URLs are checked; the API does not accept arbitrary targets from visitors.
-
-The configured services are:
+Edit `services.json` to configure approved URLs, expected HTTP status ranges, timeouts, and latency thresholds. The configured targets are:
 
 - `https://adi.rest/`
 - `https://lyrics.adi.rest/api/`
 - `https://imreallyadi.space/`
 
-The expiration date shown for `imreallyadi.space` is a manually configured value and should be updated if verified registration data changes.
+The expiration date for `imreallyadi.space` is manually configured in the API and should only be displayed as configured/unverified unless verified using registration data.
 
-## Data and behavior
+## Data integrity
 
-- Monitoring history is stored in MongoDB, with a 90-day TTL on check records.
-- The monitor runs every minute using a Cloudflare Cron Trigger.
-- Uptime percentages and incidents are derived only from recorded checks. No historical results are fabricated.
-- If MongoDB is not configured or is unavailable, the API reports monitoring data as temporarily unavailable rather than inventing status.
+- Monitoring history, uptime, and incidents must be based on actual check results.
+- Historical visualizations show empty time buckets as unknown, never healthy.
+- Do not fabricate historical checks or uptime percentages.
 - No notifications or alerting integrations are included.
-
-## Troubleshooting
-
-- If the site reports that monitoring data is unavailable, check the `MONGODB_URI` secret and MongoDB network access settings.
-- If scheduled checks do not arrive, confirm both Workers have the same `CRON_SECRET`, that `MONITOR_API_URL` is the deployed app origin, and inspect monitor logs.
-- To test the cron route manually, send a GET request to `/api/cron/check` with an `Authorization: Bearer <CRON_SECRET>` header.
+- The UI supports reduced-motion preferences and animates controls, graphs, history bars, and theme changes.
