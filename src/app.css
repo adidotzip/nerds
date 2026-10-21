@@ -7,6 +7,8 @@
 }
 
 :root {
+  @apply --m3-body-large;
+  --m3-font: "Google Sans Flex", system-ui, sans-serif;
   color-scheme: light dark;
   --m3c-surface: light-dark(#fff4f5, #23020d);
   --m3c-surface-container-lowest: light-dark(#fff, #000);
@@ -48,7 +50,6 @@
   --m3c-on-tertiary-container-subtle: light-dark(#5b3198, #c098ff);
   --m3c-error-container-subtle: light-dark(#ffc8bb, #5a0e00);
   --m3c-on-error-container-subtle: light-dark(#8f1c00, #ff8a6e);
-  font-family: "Google Sans Flex", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   background: var(--m3c-surface);
