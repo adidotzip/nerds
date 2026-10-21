@@ -1,11 +1,30 @@
 {
   "name": "adi-rest-status",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "A minimal, database-free live status page for adi.rest on Vercel.",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "check": "node --check 'api/[...route].js' && node --check public/app.js"
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.49.2",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "m3-svelte": "^7.2.1",
+    "svelte": "^5.40.0",
+    "vite": "^7.3.6",
+    "vite-plugin-functions-mixins": "^0.4.1",
+    "@ktibow/iconset-material-symbols": "^0.0.1764827375",
+    "@fontsource-variable/google-sans-flex": "^5.3.1"
+  },
+  "devDependencies": {
+    "svelte-check": "^4.7.6",
+    "typescript": "^6.0.3"
   }
 }
