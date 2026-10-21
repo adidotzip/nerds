@@ -303,13 +303,17 @@
   .uptime-bar:hover{transform:scaleY(1.14);filter:saturate(1.15)}
   .graph-line{stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 2px 2px color-mix(in srgb,var(--m3c-primary) 15%,transparent))}
   .graph-grid{stroke-linecap:round;stroke-linejoin:round}.latency-graph svg{border-radius:18px;overflow:hidden}
-  .page-tabs{padding:14px 0 6px;position:relative;z-index:2;background:transparent;min-height:66px;display:flex;align-items:center;overflow:visible}\n  .tab-panel{transform-origin:top center;min-width:0;animation:panel-fade .22s ease both;contain:layout style}\n  .m3-layer{isolation:isolate}\n  .period-switch{transition:background-color .25s ease,border-color .25s ease}
+  .page-tabs{padding:14px 0 6px;position:relative;z-index:2;background:transparent;min-height:66px;display:flex;align-items:center;overflow:visible}
+  .tab-panel{transform-origin:top center;min-width:0;animation:panel-fade .22s ease both;contain:layout style}
+  .period-switch{transition:background-color .25s ease,border-color .25s ease}
   .period-switch button{border-radius:999px;transition:background-color .25s ease,color .25s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
   .period-switch button.active{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--m3c-primary) 18%,transparent)}
   .period-switch button:not(:disabled):hover{transform:translateY(-1px)}
   .incident-row:hover{padding-left:0}
   .status-dot.up{animation:status-breathe 2.4s ease-in-out infinite}
-  @keyframes page-enter{from{opacity:0}to{opacity:1}}\n  @keyframes panel-fade{from{opacity:0}to{opacity:1}}\n  @keyframes card-arrive{from{opacity:0}to{opacity:1}}
+  @keyframes page-enter{from{opacity:0}to{opacity:1}}
+  @keyframes panel-fade{from{opacity:0}to{opacity:1}}
+  @keyframes card-arrive{from{opacity:0}to{opacity:1}}
   @keyframes bar-grow{from{transform:scaleY(.25);opacity:.4}to{transform:scaleY(1);opacity:1}}
   @keyframes draw-graph{to{stroke-dashoffset:0}}
   @keyframes status-breathe{0%,100%{box-shadow:0 0 0 0 rgb(37 134 83 / 0%)}50%{box-shadow:0 0 0 4px rgb(37 134 83 / 10%)}}
