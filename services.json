@@ -2,7 +2,7 @@
   "latencyDegradedMs": 1500,
   "services": [
     {"id":"adi-rest","name":"adi.rest","description":"Main website","url":"https://adi.rest/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500},
-    {"id":"lyrics-api","name":"Lyrics API","description":"lyrics.adi.rest/api/","url":"https://lyrics.adi.rest/api/","expectedStatus":[200,499],"timeoutMs":10000,"degradedMs":1500},
+    {"id":"lyrics-api","name":"Lyrics API","description":"lyrics.adi.rest/api/","url":"https://lyrics.adi.rest/api/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500},
     {"id":"imreallyadi-space","name":"imreallyadi.space","description":"Secondary website","url":"https://imreallyadi.space/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500}
   ]
 }
