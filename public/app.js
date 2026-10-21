@@ -149,8 +149,10 @@ themeToggle.addEventListener("click", () => {
   updateThemeButton();
 });
 updateThemeButton();
-refresh();
-setInterval(refresh, 30_000);
+if (!new URLSearchParams(location.search).has("service")) {
+  refresh();
+  setInterval(refresh, 30_000);
+}
 
 async function renderServiceDetail(id) {
   if (!/^[a-z0-9-]+$/.test(id)) return;
