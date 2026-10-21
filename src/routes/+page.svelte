@@ -63,8 +63,6 @@
     });
   };
 
-  const monitorApi = "https://monitor.adi.rest";
-
   async function fetchJson(url) {
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error("Request failed");
@@ -75,7 +73,7 @@
     try {
       const [status, incidentData, domainData] = await Promise.all([
         fetchJson("/api/ping"),
-        fetchJson(monitorApi + "/api/incidents?period=24h").catch(() => ({ incidents: [] })),
+        fetchJson("/api/incidents?period=24h").catch(() => ({ incidents: [] })),
         fetchJson("/api/domain-health").catch(() => null)
       ]);
       data = status;
@@ -84,7 +82,7 @@
       failed = false;
       const results = await Promise.all((data.services || []).map(async (service) => {
         try {
-          const result = await fetchJson(monitorApi + "/api/history/" + encodeURIComponent(service.id) + "?period=" + selected);
+          const result = await fetchJson("/api/history/" + encodeURIComponent(service.id) + "?period=" + selected);
           return [service.id, result, true];
         } catch { return [service.id, { history: [], uptime: {} }, false]; }
       }));
