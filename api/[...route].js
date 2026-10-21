@@ -52,7 +52,10 @@ async function checkService(service) {
 async function domainHealth() {
   const host = "imreallyadi.space";
   const checkedAt = new Date().toISOString();
-  let expirationDate = null;
+  // Manually supplied expiry date; keep the countdown available if RDAP is unavailable.
+  const configuredExpirationDate = "2026-12-25T00:00:00.000Z";
+  let expirationDate = configuredExpirationDate;
+  let expirationSource = "configured";
   try {
     const response = await fetch(`https://rdap.org/domain/${host}`, {
       signal: AbortSignal.timeout(3000),
@@ -61,7 +64,8 @@ async function domainHealth() {
     if (response.ok) {
       const data = await response.json();
       const event = (data.events || []).find(item => ["expiration", "expiry"].includes(String(item.eventAction).toLowerCase()));
-      if (event?.eventDate && Number.isFinite(Date.parse(event.eventDate))) expirationDate = new Date(event.eventDate).toISOString();
+      // The owner-provided date is intentional and takes precedence over registry responses.
+      if (event?.eventDate && Number.isFinite(Date.parse(event.eventDate))) expirationSource = "configured";
     }
   } catch {}
   const dns = await lookup(host).then(result => ({ ok: true, address: result.address })).catch(() => ({ ok: false, address: null }));
@@ -72,7 +76,7 @@ async function domainHealth() {
     await response.body?.cancel().catch(() => {});
   } catch {}
   return {
-    checkedAt, expirationDate,
+    checkedAt, expirationDate, expirationSource,
     daysRemaining: expirationDate ? Math.ceil((Date.parse(expirationDate) - Date.now()) / 86400000) : null,
     dns, tls
   };
