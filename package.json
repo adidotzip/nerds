@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "svelte-check": "^4.7.6",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite-plugin-functions-mixins": "latest"
   }
 }
