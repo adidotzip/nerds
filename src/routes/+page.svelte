@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { Button, Card, Chip, LoadingIndicator, Tabs, ConnectedButtons } from "m3-svelte";
+  import { Button, Card, Chip, LoadingIndicator, ConnectedButtons } from "m3-svelte";
 
 
   let data = $state(null);
@@ -10,13 +10,6 @@
   let failed = $state(false);
   let dark = $state(false);
   let selected = $state("24h");
-  let activeTab = $state("overview");
-  const pageTabs = [
-    { name: "Overview", value: "overview" },
-    { name: "History", value: "history" },
-    { name: "Incidents", value: "incidents" },
-    { name: "Domain", value: "domain" }
-  ];
   let refreshing = $state(false);
   let initialLoading = $state(true);
 
@@ -30,7 +23,8 @@
     lastSuccessfulCheck: null, lastFailedCheck: null
   }));
 
-  const periods = [{ label: "24 hours", value: "24h" }, { label: "7 days", value: "7d" }, { label: "30 days", value: "30d" }];
+  const expiryDate = "2026-12-25T00:00:00.000Z";
+  const daysToExpiration = () => Math.ceil((Date.parse(expiryDate) - Date.now()) / 86400000);
   const statusText = { up: "All systems operational", partial: "Partial service disruption", degraded: "Degraded performance", down: "Major outage", unknown: "Status temporarily unavailable" };
   const time = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Awaiting first check";
   const latency = (value) => Number.isFinite(value) ? Math.round(value) + " ms" : "—";
@@ -141,15 +135,13 @@
   </header>
 
   <main>
-    <nav class="page-tabs" aria-label="Status sections"><Tabs items={pageTabs} bind:tab={activeTab} /></nav>
     <section class="hero">
       <div class="status-line"><span class="status-dot {data?.status || 'unknown'}"></span><span>{statusText[data?.status || "unknown"]}</span></div>
       <h1>{data?.status === "up" ? "Everything is running smoothly." : data?.status === "down" || data?.status === "partial" ? "We're investigating a service disruption." : data?.status === "degraded" ? "Some services are running slowly." : "Service status at a glance."}</h1>
       <div class="hero-meta"><span>{failed ? "Live checks are unavailable. Configured services remain listed as Unknown." : data?.liveOnly ? "Showing fresh live checks. Historical data is currently unavailable." : data?.configurationFallback ? "Showing configured services while live results are unavailable." : "Monitoring the services that power adi.rest."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
     </section>
 
-    {#if activeTab === "overview"}
-      <div class="tab-panel">
+    
     <section class="section summary-section">
       <div class="section-heading"><div><p class="eyebrow">OVERVIEW</p><h2>Service health</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored services</span></div>
       <div class="service-list">
@@ -202,8 +194,7 @@
 
       </div>
     {/if}
-    {#if activeTab === "history"}
-      <div class="tab-panel">
+
     <section class="section history-section">
       <div class="section-heading"><div><p class="eyebrow">HISTORICAL DATA</p><h2>Uptime & response times</h2></div>
         <ConnectedButtons>
@@ -235,8 +226,7 @@
 
       </div>
     {/if}
-    {#if activeTab === "incidents"}
-      <div class="tab-panel">
+
     <section class="section incidents-section">
       <div class="section-heading"><div><p class="eyebrow">EVENT LOG</p><h2>Recent incidents</h2></div><span class="subtle">Recorded check failures</span></div>
       <Card variant="outlined">
@@ -258,19 +248,16 @@
 
       </div>
     {/if}
-    {#if activeTab === "domain"}
-      <div class="tab-panel">
+
     <section class="section domain-section">
       <div class="section-heading"><div><p class="eyebrow">REGISTRATION</p><h2>imreallyadi.space</h2></div><Chip variant="general" disabled>Domain health</Chip></div>
       <Card variant="outlined">
         <div class="domain-row">
-          <div class="domain-copy"><h3>{domain?.expirationDate ? "Domain expiration" : "Expiration date not verified"}</h3><p>{domain?.expirationDate ? "Configured expiration date: " + new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeZone: "UTC" }).format(new Date(domain.expirationDate)) + ". This date is manually supplied and has not been independently verified." : "No trusted registration date is available. Nothing is guessed."}</p><p class="domain-meta">{domain?.dns ? (domain.dns.ok ? "DNS resolves" : "DNS lookup failed") : "DNS status unavailable"} · {domain?.tls ? (domain.tls.valid ? "HTTPS connection succeeded" : "HTTPS connection failed") : "HTTPS status unavailable"}</p></div>
-          <div class="countdown"><strong>{Number.isFinite(domain?.daysRemaining) ? Math.max(0, domain.daysRemaining) : "—"}</strong><span>{domain?.daysRemaining < 0 ? "days past date" : "days remaining"}</span></div>
+          <div class="domain-copy"><h3>Domain expiration</h3><p>imreallyadi.space expires on December 25, 2026.</p></div>
+          <div class="countdown"><strong>{Math.max(0, daysToExpiration())}</strong><span>{daysToExpiration() < 0 ? "days past date" : "days remaining"}</span></div>
         </div>
       </Card>
     </section>
-      </div>
-    {/if}
   </main>
 
   <footer><span class="footer-brand">adi.rest</span><span>Live checks. Historical data is shown only when available.</span><a href="/api/status">Status API ↗</a></footer>
@@ -305,8 +292,6 @@
   .uptime-bar:hover{transform:scaleY(1.14);filter:saturate(1.15)}
   .graph-line{stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 2px 2px color-mix(in srgb,var(--m3c-primary) 15%,transparent))}
   .graph-grid{stroke-linecap:round;stroke-linejoin:round}.latency-graph svg{border-radius:18px;overflow:hidden}
-  .page-tabs{padding:14px 0 6px;position:relative;z-index:2;background:transparent;min-height:66px;display:flex;align-items:center;overflow:visible}
-  .tab-panel{transform-origin:top center;min-width:0;animation:panel-fade .22s ease both;contain:layout style}
   .period-switch{transition:background-color .25s ease,border-color .25s ease}
   .period-switch button{border-radius:999px;transition:background-color .25s ease,color .25s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
   .period-switch button.active{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--m3c-primary) 18%,transparent)}
@@ -314,11 +299,10 @@
   .incident-row:hover{padding-left:0}
   .status-dot.up{animation:status-breathe 2.4s ease-in-out infinite}
   @keyframes page-enter{from{opacity:0}to{opacity:1}}
-  @keyframes panel-fade{from{opacity:0}to{opacity:1}}
-  @keyframes card-arrive{from{opacity:0}to{opacity:1}}
+    @keyframes card-arrive{from{opacity:0}to{opacity:1}}
   @keyframes bar-grow{from{transform:scaleY(.25);opacity:.4}to{transform:scaleY(1);opacity:1}}
   @keyframes draw-graph{to{stroke-dashoffset:0}}
   @keyframes status-breathe{0%,100%{box-shadow:0 0 0 0 rgb(37 134 83 / 0%)}50%{box-shadow:0 0 0 4px rgb(37 134 83 / 10%)}}
-  @media(prefers-reduced-motion:reduce){.boot-brand,.boot-caption,.theme-toggle :global(svg),.service-list :global(.m3-card),.tab-panel,.uptime-bar,.graph-line,.status-dot.up{animation:none!important}.booting{visibility:hidden}button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:none!important}}
+  @media(prefers-reduced-motion:reduce){.boot-brand,.boot-caption,.theme-toggle :global(svg),.service-list :global(.m3-card),.uptime-bar,.graph-line,.status-dot.up{animation:none!important}.booting{visibility:hidden}button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:none!important}}
 
 </style>
