@@ -33,11 +33,11 @@ The site, live checks, scheduled monitor, and history API run on Vercel. MongoDB
 
 1. Set `MONGODB_URI` in the Vercel project environment variables to your MongoDB connection string.
 2. Optionally set `MONGODB_DB` (defaults to `adi_rest_status`).
-3. Set `CRON_SECRET` in Vercel. Use a long random secret.
-4. Confirm the Vercel project is configured to deploy `vercel.json`, which schedules `/api/cron/check` every minute.
+3. Set `CRON_SECRET` in Vercel to a long random secret.
+4. Confirm the deployment includes `vercel.json`, which schedules `/api/cron/check` every minute.
 5. Redeploy after setting environment variables.
 
-The cron route requires the `Authorization: Bearer <CRON_SECRET>` header. Each run performs real HTTP checks against the exact URLs in `services.json` and stores results in MongoDB. Records older than 31 days are removed. Live status checks run through the backend as well. Historical uptime is calculated only from recorded checks, so new history starts accumulating after the cron job is successfully running.
+The cron endpoint requires `Authorization: Bearer <CRON_SECRET>`. Each run checks the exact URLs in `services.json` and stores real results in MongoDB. Records older than 31 days are pruned. Live status requests also perform fresh backend checks. Historical uptime starts accumulating once scheduled checks run successfully; no missing history is fabricated.
 
 ## Monitored services
 
