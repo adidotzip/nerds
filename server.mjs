@@ -1,5 +1,5 @@
 import http from "node:http";
-import { readFile, stat, mkdir } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { resolve, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config, storageDir, historyPath, incidentFile, readJsonLines, runChecks } from "./monitor.mjs";
@@ -24,12 +24,16 @@ function json(res, status, data) {
 function statusLabel(status) {
   return ({ up: "Operational", degraded: "Degraded performance", down: "Outage", unknown: "Unknown" })[status] || "Unknown";
 }
-function serviceStatus(rows) {
+function serviceStatus(rows, service) {
   if (!rows.length) return "unknown";
   const latest = rows.at(-1);
-  if (!latest?.timestamp || Date.now() - Date.parse(latest.timestamp) > STALE_MS) return "unknown";
-  if (latest.success !== true) return "down";
-  const service = config.services.find(s => s.id === latest.serviceId);
+  const latestAt = Date.parse(latest?.timestamp);
+  if (!Number.isFinite(latestAt) || Date.now() - latestAt > STALE_MS) return "unknown";
+  const threshold = Math.max(1, config.failureThreshold || 2);
+  const recent = rows.slice(-threshold);
+  if (latest.success !== true) {
+    return recent.length >= threshold && recent.every(row => row.success === false) ? "down" : "degraded";
+  }
   if (latest.responseTimeMs != null && latest.responseTimeMs >= (service?.degradedMs || config.latencyDegradedMs || 1500)) return "degraded";
   return "up";
 }
@@ -61,7 +65,7 @@ async function getServices(period = "24h", id = null) {
     let rows = [];
     try { rows = (await readJsonLines(historyPath(service.id))).filter(r => r.serviceId === service.id).sort((a,b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)); } catch {}
     const latest = rows.at(-1) || null;
-    const currentStatus = serviceStatus(rows);
+    const currentStatus = serviceStatus(rows, service);
     const periodStats = Object.fromEntries(Object.keys(periods).map(p => [p, uptime(rows, p)]));
     const recent = rows.filter(r => Date.parse(r.timestamp) >= Date.now() - (periods[period] || periods["24h"]));
     results.push({
