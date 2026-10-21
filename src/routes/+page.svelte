@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
-  import { fade, fly } from "svelte/transition";
-  import { Button, Card, Chip, LoadingIndicator } from "m3-svelte";
+  import { Button, Card, Chip, LoadingIndicator, Tabs, ConnectedButtons, sharedAxisTransition } from "m3-svelte";
+  import "m3-svelte/etc/layer";
 
 
   let data = $state(null);
@@ -11,6 +11,13 @@
   let failed = $state(false);
   let dark = $state(false);
   let selected = $state("24h");
+  let activeTab = $state("overview");
+  const pageTabs = [
+    { name: "Overview", value: "overview" },
+    { name: "History", value: "history" },
+    { name: "Incidents", value: "incidents" },
+    { name: "Domain", value: "domain" }
+  ];
   let refreshing = $state(false);
   let initialLoading = $state(true);
 
@@ -127,10 +134,10 @@
 
 <div class:booting={initialLoading} class="shell">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="adi.rest status home">adi.rest</a>
+    <a class="brand m3-layer" href="/" aria-label="adi.rest status home">adi.rest</a>
     <div class="top-actions">
       <span class="live-indicator"><span></span> Live monitoring</span>
-      <button class="theme-toggle" class:turning-dark={!dark} class:turning-light={dark} onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Light theme" : "Dark theme"}>
+      <button class="theme-toggle m3-layer" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Light theme" : "Dark theme"}>
         {#if dark}
           <svg class="theme-icon sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
         {:else}
@@ -141,13 +148,16 @@
   </header>
 
   <main>
-    <section class="hero" in:fly={{ y: 14, duration: 420 }}>
+    <nav class="page-tabs" aria-label="Status sections"><Tabs items={pageTabs} bind:tab={activeTab} /></nav>
+    <section class="hero">
       <div class="status-line"><span class="status-dot {data?.status || 'unknown'}"></span><span>{statusText[data?.status || "unknown"]}</span></div>
       <h1>{data?.status === "up" ? "Everything is running smoothly." : data?.status === "down" || data?.status === "partial" ? "We're investigating a service disruption." : data?.status === "degraded" ? "Some services are running slowly." : "Service status at a glance."}</h1>
       <div class="hero-meta"><span>{failed ? "Status data could not be loaded." : "Monitoring the services that power adi.rest."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
     </section>
 
-    <section class="section summary-section" in:fade={{ duration: 360 }}>
+    {#if activeTab === "overview"}
+      <div class="tab-panel" transition:sharedAxisTransition={{ direction: "X", rightSeam: true }}>
+    <section class="section summary-section">
       <div class="section-heading"><div><p class="eyebrow">OVERVIEW</p><h2>Service health</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored services</span></div>
       <div class="service-list">
         {#if !data}
@@ -158,7 +168,7 @@
           {#each data.services as service, i (service.id)}
             {@const historyData = histories[service.id]}
             <Card variant="outlined">
-              <article class="service-card" style={`--item-index:${i}`} in:fly={{ y: 10, duration: 320, delay: i * 45 }}>
+              <article class="service-card m3-layer" style={`--item-index:${i}`}>
                 <div class="service-main">
                   <div class="service-name-line"><span class="status-dot small {service.status || 'unknown'}"></span><h3>{service.name}</h3><span class="status-word {service.status || 'unknown'}">{service.statusLabel || "Unknown"}</span></div>
                   <p class="service-description">{service.description}</p>
@@ -197,13 +207,22 @@
       </div>
     </section>
 
-    <section class="section history-section" in:fade={{ duration: 360, delay: 60 }}>
+      </div>
+    {#if activeTab === "history"}
+      <div class="tab-panel" transition:sharedAxisTransition={{ direction: "X", rightSeam: true }}>
+    <section class="section history-section">
       <div class="section-heading"><div><p class="eyebrow">HISTORICAL DATA</p><h2>Uptime & response times</h2></div>
-        <div class="period-switch" aria-label="History time range">
-          {#each periods as period}
-            <button class:active={selected === period.value} class:loading-period={refreshing && selected === period.value} onclick={() => changePeriod(period.value)} aria-pressed={selected === period.value} disabled={refreshing}>{period.label}</button>
-          {/each}
-        </div>
+        <ConnectedButtons>
+          <Button variant={selected === "24h" ? "filled" : "tonal"} square label>
+            <input type="radio" name="history-period" value="24h" checked={selected === "24h"} onchange={() => changePeriod("24h")} disabled={refreshing} />24h
+          </Button>
+          <Button variant={selected === "7d" ? "filled" : "tonal"} square label>
+            <input type="radio" name="history-period" value="7d" checked={selected === "7d"} onchange={() => changePeriod("7d")} disabled={refreshing} />7 days
+          </Button>
+          <Button variant={selected === "30d" ? "filled" : "tonal"} square label>
+            <input type="radio" name="history-period" value="30d" checked={selected === "30d"} onchange={() => changePeriod("30d")} disabled={refreshing} />30 days
+          </Button>
+        </ConnectedButtons>
       </div>
       <Card variant="outlined">
         <div class="history-overview">
@@ -220,7 +239,10 @@
       </Card>
     </section>
 
-    <section class="section incidents-section" in:fade={{ duration: 360, delay: 90 }}>
+      </div>
+    {#if activeTab === "incidents"}
+      <div class="tab-panel" transition:sharedAxisTransition={{ direction: "X", rightSeam: true }}>
+    <section class="section incidents-section">
       <div class="section-heading"><div><p class="eyebrow">EVENT LOG</p><h2>Recent incidents</h2></div><span class="subtle">Recorded check failures</span></div>
       <Card variant="outlined">
         {#if incidents.length}
@@ -237,7 +259,10 @@
       </Card>
     </section>
 
-    <section class="section domain-section" in:fade={{ duration: 360, delay: 120 }}>
+      </div>
+    {#if activeTab === "domain"}
+      <div class="tab-panel" transition:sharedAxisTransition={{ direction: "X", rightSeam: true }}>
+    <section class="section domain-section">
       <div class="section-heading"><div><p class="eyebrow">REGISTRATION</p><h2>imreallyadi.space</h2></div><Chip variant="general" disabled>Domain health</Chip></div>
       <Card variant="outlined">
         <div class="domain-row">
@@ -246,6 +271,8 @@
         </div>
       </Card>
     </section>
+      </div>
+    {/if}
   </main>
 
   <footer><span class="footer-brand">adi.rest</span><span>Live checks, recorded history, no guesswork.</span><a href="/api/status">Status API ↗</a></footer>
@@ -260,20 +287,14 @@
   .boot-screen p{margin:0;font-size:14px;font-weight:600;letter-spacing:-.01em}
   .boot-caption{font-size:12px;color:var(--m3c-on-surface-variant);animation:soft-pulse 1.8s ease-in-out infinite}
   .booting{visibility:hidden;pointer-events:none}
-  .boot-screen{isolation:isolate}
-  .boot-screen :global(.m3-loading-indicator){display:none}
-  .boot-screen::before{content:"";width:42px;height:42px;border:2px solid var(--m3c-outline-variant);border-top-color:var(--m3c-primary);border-radius:50%;animation:boot-spin .8s linear infinite}
-  .boot-screen :global(.m3-loading-indicator){display:none}
-  @keyframes boot-spin{to{transform:rotate(360deg)}}
+  .boot-screen{isolation:isolate}\n  .boot-screen :global(.m3-loading-indicator){display:initial}
   @keyframes boot-arrive{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes soft-pulse{0%,100%{opacity:.5}50%{opacity:1}}
   .theme-toggle{overflow:hidden;transition:transform .25s cubic-bezier(.2,.8,.2,1),background-color .25s ease,border-color .25s ease}
-  .theme-toggle :global(svg){transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .2s ease}.theme-toggle.turning-dark .moon-icon{animation:icon-disappear .2s ease both}.theme-toggle.turning-light .sun-icon{animation:icon-disappear .2s ease both}
-  .theme-toggle:hover :global(svg){transform:rotate(-18deg) scale(1.08)}
+  .theme-toggle :global(svg){transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .2s ease}  .theme-toggle:hover :global(svg){transform:rotate(-18deg) scale(1.08)}
   .theme-toggle:active{transform:scale(.9)}
   .theme-toggle .sun-icon{animation:sun-arrive .42s cubic-bezier(.2,.8,.2,1) both}
   .theme-toggle .moon-icon{animation:moon-arrive .42s cubic-bezier(.2,.8,.2,1) both}
-  @keyframes icon-disappear{to{opacity:0;transform:rotate(35deg) scale(.6)}}
   @keyframes sun-arrive{from{opacity:0;transform:rotate(-75deg) scale(.55)}to{opacity:1;transform:rotate(0) scale(1)}}
   @keyframes moon-arrive{from{opacity:0;transform:rotate(45deg) scale(.55)}to{opacity:1;transform:rotate(0) scale(1)}}
   button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:color .22s ease,background-color .22s ease,border-color .22s ease,transform .22s cubic-bezier(.2,.8,.2,1),opacity .22s ease,box-shadow .22s ease}
@@ -283,14 +304,14 @@
   button:disabled{opacity:.65;cursor:wait}
   a:hover{color:var(--m3c-primary)}
   .service-list :global(.m3-card){animation:card-arrive .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--item-index, 0) * 55ms)}
-  .service-card{border-radius:28px}
+  .service-card{border-radius:28px;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease}
   .service-card:hover{transform:translateY(-2px)}
   .uptime-bar{min-height:100%;transform-origin:center;animation:bar-grow .45s cubic-bezier(.2,.8,.2,1) both;border-radius:999px;min-width:0}
   .uptime-bar.unknown{background:color-mix(in srgb,var(--m3c-outline-variant) 58%,transparent)}
   .uptime-bar:hover{transform:scaleY(1.14);filter:saturate(1.15)}
   .graph-line{stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 2px 2px color-mix(in srgb,var(--m3c-primary) 15%,transparent))}
   .graph-grid{stroke-linecap:round;stroke-linejoin:round}.latency-graph svg{border-radius:18px;overflow:hidden}
-  .period-switch{transition:background-color .25s ease,border-color .25s ease}
+  .page-tabs{padding-top:18px;position:sticky;top:0;z-index:20;background:var(--m3c-surface);padding-bottom:8px}\n  .tab-panel{transform-origin:top center;min-width:0}\n  .m3-layer{isolation:isolate}\n  .period-switch{transition:background-color .25s ease,border-color .25s ease}
   .period-switch button{border-radius:999px;transition:background-color .25s ease,color .25s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
   .period-switch button.active{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--m3c-primary) 18%,transparent)}
   .period-switch button:not(:disabled):hover{transform:translateY(-1px)}
@@ -300,6 +321,6 @@
   @keyframes bar-grow{from{transform:scaleY(.25);opacity:.4}to{transform:scaleY(1);opacity:1}}
   @keyframes draw-graph{to{stroke-dashoffset:0}}
   @keyframes status-breathe{0%,100%{box-shadow:0 0 0 0 rgb(37 134 83 / 0%)}50%{box-shadow:0 0 0 4px rgb(37 134 83 / 10%)}}
-  @media(prefers-reduced-motion:reduce){.boot-brand,.boot-caption,.boot-screen::before,.theme-toggle :global(svg),.theme-toggle .sun-icon,.theme-toggle .moon-icon,.service-list :global(.m3-card),.uptime-bar,.graph-line,.status-dot.up{animation:none!important}.booting{visibility:hidden}button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:none!important}}
+  @media(prefers-reduced-motion:reduce){.boot-brand,.boot-caption,.theme-toggle :global(svg),.theme-toggle .sun-icon,.theme-toggle .moon-icon,.service-list :global(.m3-card),.uptime-bar,.graph-line,.status-dot.up{animation:none!important}.booting{visibility:hidden}button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:none!important}}
 
 </style>
