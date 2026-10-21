@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f7f7f5">
-  <meta name="description" content="Live availability and uptime history for adi.rest services.">
+  <meta name="description" content="Live availability for adi.rest services.">
   <title>Status · adi.rest</title>
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
@@ -21,7 +21,7 @@
         <div class="hero-kicker"><span id="overall-dot" class="status-dot unknown"></span><span id="overall-label">Checking live status</span></div>
         <h1 id="overall-title">Status, without the noise.</h1>
         <p id="overall-description" class="hero-description">A clear view of the services behind adi.rest.</p>
-        <div class="refresh-line"><span class="refresh-icon" aria-hidden="true">↻</span><span id="updated-at">Waiting for the first monitoring result</span><span class="separator">·</span><span>Auto-refreshes every 30 seconds</span></div>
+        <div class="refresh-line"><span class="refresh-icon" aria-hidden="true">↻</span><span id="updated-at">Waiting for the first monitoring result</span><span class="separator">·</span><span>Live checks · refreshes every 30 seconds</span></div>
       </section>
 
       <section class="section services-section" aria-labelledby="services-heading">
@@ -41,19 +41,15 @@
         <div id="domain-meta" class="domain-meta">Domain registration and HTTP availability are tracked separately.</div>
       </section>
 
-      <section class="section incidents-section" aria-labelledby="incidents-heading">
-        <div class="section-heading"><div><p class="section-eyebrow">WHAT HAPPENED</p><h2 id="incidents-heading">Recent incidents</h2></div><span class="section-meta">Latest events</span></div>
-        <div id="incidents" class="incident-list"><div class="empty-state"><span class="empty-icon">✓</span><div><strong>No recorded incidents</strong><p>Real outage and recovery events will appear here after monitoring begins.</p></div></div></div>
-      </section>
     </main>
 
-    <footer class="site-footer"><div class="footer-brand"><span class="brand-mark small">a.</span><span>Quietly keeping an eye on things.</span></div><div class="footer-right"><span>HTTP checks · Every 60 seconds</span><a href="/api/status">Public API <span aria-hidden="true">↗</span></a><span id="footer-refresh">No monitoring data yet</span></div></footer>
+    <footer class="site-footer"><div class="footer-brand"><span class="brand-mark small">a.</span><span>Quietly keeping an eye on things.</span></div><div class="footer-right"><span>Live HTTP checks</span><a href="/api/status">Public API <span aria-hidden="true">↗</span></a><span id="footer-refresh">No monitoring data yet</span></div></footer>
   </div>
   <template id="service-template">
     <a class="service-row" href="#" data-service-link>
       <span class="service-symbol" aria-hidden="true"><span class="status-dot"></span></span>
       <span class="service-main"><span class="service-name"></span><span class="service-description"></span></span>
-      <span class="service-history"><span class="uptime-label">Last checks</span><span class="uptime-bars" aria-label="Uptime history"></span></span>
+      <span class="service-history"><span class="uptime-label">LIVE CHECK</span><span class="service-live-note">Current response</span></span>
       <span class="service-metrics"><strong class="service-latency">—</strong><span class="service-uptime">Collecting data</span></span>
       <span class="service-state"><span class="state-pill"><span class="status-dot"></span><span></span></span><span class="chevron" aria-hidden="true">↗</span></span>
     </a>
