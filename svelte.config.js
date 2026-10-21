@@ -1,10 +1,10 @@
-import adapter from "@sveltejs/adapter-static";
+import adapter from "@sveltejs/adapter-auto";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 
 const config = {
   preprocess: vitePreprocess(),
   kit: {
-    adapter: adapter({ fallback: "200.html" }),
+    adapter: adapter(),
     alias: { $lib: "./src/lib" },
     prerender: { handleHttpError: "warn" }
   }
