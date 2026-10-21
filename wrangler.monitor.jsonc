@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "adi-rest-status-monitor",
+  "main": "monitor-worker.js",
+  "compatibility_date": "2026-10-21",
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+  "vars": {
+    "MONITOR_API_URL": "https://adi-rest-status.YOUR-SUBDOMAIN.workers.dev"
+  }
+}
