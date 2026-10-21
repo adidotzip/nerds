@@ -143,7 +143,7 @@
 
     
     <section class="section summary-section">
-      <div class="section-heading"><div><p class="eyebrow">OVERVIEW</p><h2>Service health</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored services</span></div>
+      <div class="section-heading"><div><h2>Service health</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored services</span></div>
       <div class="service-list">
         {#if !data}
           <Card variant="outlined"><div class="loading"><span>Checking services…</span></div></Card>
