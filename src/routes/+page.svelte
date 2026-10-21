@@ -227,7 +227,7 @@
               <div class="history-stat"><span>Average latency</span><strong>{latency(histories[service.id]?.uptime?.[selected]?.averageResponseTimeMs)}</strong></div>
             </div>
           {/each}
-          {#if !data?.services?.length}<div class="empty">Historical statistics appear after monitoring records are collected.</div>{/if}
+          {#if !data?.services?.length || data?.historyAvailable === false}<div class="empty">{data?.historyAvailable === false ? "Live checks are working, but saved history is unavailable. Uptime percentages are not guessed." : "Historical statistics appear after monitoring records are collected."}</div>{/if}
         </div>
         <p class="history-note">Only recorded checks count toward uptime. Missing intervals are unknown, not successful. When live-only mode is active, historical uptime cannot be verified.</p>
       </Card>
@@ -240,7 +240,9 @@
     <section class="section incidents-section">
       <div class="section-heading"><div><p class="eyebrow">EVENT LOG</p><h2>Recent incidents</h2></div><span class="subtle">Recorded check failures</span></div>
       <Card variant="outlined">
-        {#if incidents.length}
+        {#if data?.historyAvailable === false}
+          <div class="empty-incidents"><strong>Incident history unavailable</strong><p>Live service checks are available, but past outages cannot be verified until history storage is restored.</p></div>
+        {:else if incidents.length}
           <div class="incident-list">
             {#each incidents.slice(0, 12) as incident, i}
               <div class="incident-row" key={incident._id || incident.timestamp + i}>
