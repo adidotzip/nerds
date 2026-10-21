@@ -1,6 +1,27 @@
 @import "m3-svelte/etc/styles.css";
 @import "m3-svelte/etc/recommended-styles.css";
-@import "@fontsource-variable/google-sans-flex/opsz.css";
+
+@font-face {
+  font-family: "Google Sans Rounded";
+  src: url("../GoogleSansRounded-Regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Google Sans Rounded";
+  src: url("../GoogleSansRounded-Medium.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Google Sans Rounded";
+  src: url("../GoogleSansRounded-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
 
 @function --m3-density(--size) {
   result: var(--size);
@@ -8,7 +29,7 @@
 
 :root {
   @apply --m3-body-large;
-  --m3-font: "Google Sans Flex", system-ui, sans-serif;
+  --m3-font: "Google Sans Rounded", system-ui, sans-serif;
   color-scheme: light dark;
   --m3c-surface: light-dark(#fff4f5, #23020d);
   --m3c-surface-container-lowest: light-dark(#fff, #000);
