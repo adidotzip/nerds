@@ -3,9 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f7f7f5">
+  <meta name="theme-color" content="#fff4f5">
   <meta name="description" content="Live availability for adi.rest services.">
   <title>Status · adi.rest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400..750&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
 </head>
@@ -25,9 +28,9 @@
       </section>
 
       <section class="section services-section" aria-labelledby="services-heading">
-        <div class="section-heading"><div><p class="section-eyebrow">LIVE MONITORING</p><h2 id="services-heading">Services</h2></div><span id="service-count" class="section-meta">4 targets</span></div>
+        <div class="section-heading"><div><p class="section-eyebrow">LIVE MONITORING</p><h2 id="services-heading">Services</h2></div><span id="service-count" class="section-meta">3 targets</span></div>
         <div id="services" class="service-list" aria-live="polite">
-          <div class="service-skeleton"></div><div class="service-skeleton"></div><div class="service-skeleton"></div><div class="service-skeleton"></div>
+          <div class="service-skeleton"></div><div class="service-skeleton"></div><div class="service-skeleton"></div>
         </div>
       </section>
 
@@ -40,7 +43,6 @@
         </div>
         <div id="domain-meta" class="domain-meta">Domain registration and HTTP availability are tracked separately.</div>
       </section>
-
     </main>
 
     <footer class="site-footer"><div class="footer-brand"><span class="brand-mark small">a.</span><span>Quietly keeping an eye on things.</span></div><div class="footer-right"><span>Live HTTP checks</span><a href="/api/status">Public API <span aria-hidden="true">↗</span></a><span id="footer-refresh">No monitoring data yet</span></div></footer>
