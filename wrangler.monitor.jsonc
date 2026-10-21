@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "adi-rest-status-monitor",
+  "name": "adi-rest-status-monitor",\n  "routes": [{ "pattern": "monitor.adi.rest", "custom_domain": true }],
   "main": "monitor-worker.js",
   "compatibility_date": "2026-10-21",
   "triggers": {
