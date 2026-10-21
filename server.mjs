@@ -64,7 +64,7 @@ async function lastRefresh() {
   return latest;
 }
 async function endpoint(pathname, url, res) {
-  if (pathname === "/api/status") { const services = await getServices("24h"); return json(res, 200, { ...aggregateStatus(services), updatedAt: await lastRefresh(), services }); }
+  if (pathname === "/api/status") { const services = await getServices("24h"); const updatedAt = await lastRefresh(); const stale = !updatedAt || Date.now() - Date.parse(updatedAt) > STALE_MS; if (stale) for (const service of services) { service.status = "unknown"; service.statusLabel = "Unknown"; } return json(res, 200, { ...(stale ? { status: "unknown", message: "Status Temporarily Unavailable" } : aggregateStatus(services)), updatedAt, services }); }
   if (pathname === "/api/incidents") { try { return json(res, 200, { incidents: (await readJsonLines(incidentFile)).slice(-100).reverse() }); } catch { return json(res, 200, { incidents: [] }); } }
   if (pathname === "/api/domain-health") return json(res, 200, await getDomainHealth());
   let match = pathname.match(/^\/api\/status\/([a-z0-9-]+)$/);
