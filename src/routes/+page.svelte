@@ -130,7 +130,7 @@
     <a class="brand" href="/" aria-label="adi.rest status home">adi.rest</a>
     <div class="top-actions">
       <span class="live-indicator"><span></span> Live monitoring</span>
-      <button class="theme-toggle" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Light theme" : "Dark theme"}>
+      <button class="theme-toggle" class:turning-dark={!dark} class:turning-light={dark} onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Light theme" : "Dark theme"}>
         {#if dark}
           <svg class="theme-icon sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
         {:else}
@@ -268,11 +268,12 @@
   @keyframes boot-arrive{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes soft-pulse{0%,100%{opacity:.5}50%{opacity:1}}
   .theme-toggle{overflow:hidden;transition:transform .25s cubic-bezier(.2,.8,.2,1),background-color .25s ease,border-color .25s ease}
-  .theme-toggle :global(svg){transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .2s ease}
+  .theme-toggle :global(svg){transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .2s ease}.theme-toggle.turning-dark .moon-icon{animation:icon-disappear .2s ease both}.theme-toggle.turning-light .sun-icon{animation:icon-disappear .2s ease both}
   .theme-toggle:hover :global(svg){transform:rotate(-18deg) scale(1.08)}
   .theme-toggle:active{transform:scale(.9)}
   .theme-toggle .sun-icon{animation:sun-arrive .42s cubic-bezier(.2,.8,.2,1) both}
   .theme-toggle .moon-icon{animation:moon-arrive .42s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes icon-disappear{to{opacity:0;transform:rotate(35deg) scale(.6)}}
   @keyframes sun-arrive{from{opacity:0;transform:rotate(-75deg) scale(.55)}to{opacity:1;transform:rotate(0) scale(1)}}
   @keyframes moon-arrive{from{opacity:0;transform:rotate(45deg) scale(.55)}to{opacity:1;transform:rotate(0) scale(1)}}
   button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:color .22s ease,background-color .22s ease,border-color .22s ease,transform .22s cubic-bezier(.2,.8,.2,1),opacity .22s ease,box-shadow .22s ease}
