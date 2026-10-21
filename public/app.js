@@ -18,7 +18,7 @@ function uptimeText(stats) { return stats?.percentage == null ? (stats?.checks ?
 
 function renderService(service) {
   const node = template.content.firstElementChild.cloneNode(true);
-  node.href = `/service/${encodeURIComponent(service.id)}`;
+  node.href = `/?service=${encodeURIComponent(service.id)}`;
   node.setAttribute("aria-label", `${service.name}, ${service.statusLabel}. Open service details`);
   $(".service-name", node).textContent = service.name;
   $(".service-description", node).textContent = service.description;
@@ -151,3 +151,37 @@ themeToggle.addEventListener("click", () => {
 updateThemeButton();
 refresh();
 setInterval(refresh, 30_000);
+
+async function renderServiceDetail(id) {
+  if (!/^[a-z0-9-]+$/.test(id)) return;
+  try {
+    const response = await fetch(`/api/status/${encodeURIComponent(id)}`, { cache: "no-store" });
+    if (!response.ok) return;
+    const service = await response.json();
+    const main = $("main");
+    const history = (service.history || []).slice(-36).reverse();
+    const periodCards = ["24h", "7d", "30d"].map(period => {
+      const item = service.uptime?.[period];
+      return `<div class="detail-stat"><span>${period} uptime</span><strong>${item?.percentage == null ? "Collecting data" : esc(item.percentage.toFixed(2) + "%")}</strong><small>${item?.checks || 0} recorded checks</small></div>`;
+    }).join("");
+    const bars = (service.history || []).slice(-60).map(row => {
+      const state = row.success ? ((row.responseTimeMs >= 1500) ? "degraded" : "up") : "down";
+      return `<span class="uptime-bar ${state}" title="${esc(formatDate(row.timestamp) + " · " + (row.success ? "Success" : "Failure") + " · " + formatLatency(row.responseTimeMs))}"></span>`;
+    }).join("");
+    const checks = history.map(row => `<div class="detail-check"><span class="status-dot ${row.success ? ((row.responseTimeMs >= 1500) ? "degraded" : "up") : "down"}"></span><span><strong>${row.success ? "Successful check" : "Failed check"}</strong><small>${esc(formatDate(row.timestamp))}${row.statusCode ? " · HTTP " + esc(row.statusCode) : ""}${row.errorCategory ? " · " + esc(row.errorCategory) : ""}</small></span><b>${esc(formatLatency(row.responseTimeMs))}</b></div>`).join("");
+    const status = service.status || "unknown";
+    main.innerHTML = `
+      <section class="detail-page">
+        <a class="back-link" href="/">← All services</a>
+        <div class="detail-heading"><p class="section-eyebrow">SERVICE DETAILS</p><h1>${esc(service.name)}</h1><p>${esc(service.description || service.url)}</p>
+        <div class="detail-status ${esc(status)}"><span class="status-dot ${esc(status)}"></span><strong>${esc(service.statusLabel || "Unknown")}</strong><span>·</span><span>${esc(formatLatency(service.latest?.responseTimeMs))}</span></div></div>
+        <div class="detail-stats">${periodCards}</div>
+        <section class="detail-section"><div class="section-heading"><div><p class="section-eyebrow">RECENT PERFORMANCE</p><h2>Uptime history</h2></div><span class="section-meta">Latest recorded checks</span></div><div class="detail-bars">${bars || '<p class="detail-empty">Collecting data. History will appear after checks have been recorded.</p>'}</div><div class="detail-legend"><span><i class="up"></i>Successful</span><span><i class="degraded"></i>Degraded latency</span><span><i class="down"></i>Failed</span></div></section>
+        <section class="detail-section"><div class="section-heading"><div><p class="section-eyebrow">CHECK LOG</p><h2>Recent checks</h2></div><span class="section-meta">${service.dataPoints || 0} total records</span></div><div class="detail-check-list">${checks || '<p class="detail-empty">No checks recorded yet.</p>'}</div></section>
+        <section class="detail-meta"><div><span>Last successful check</span><strong>${esc(formatDate(service.lastSuccessfulCheck))}</strong></div><div><span>Last failed check</span><strong>${esc(formatDate(service.lastFailedCheck))}</strong></div><div><span>Monitored URL</span><a href="${esc(service.url)}" rel="noopener noreferrer" target="_blank">${esc(service.url)} ↗</a></div></section>
+      </section>`;
+    document.title = `${service.name} · Status · adi.rest`;
+  } catch { /* The main status page remains available if detail data cannot load. */ }
+}
+const selectedService = new URLSearchParams(location.search).get("service");
+if (selectedService) renderServiceDetail(selectedService);
