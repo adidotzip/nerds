@@ -1,0 +1,67 @@
+@import "m3-svelte/etc/styles.css";
+@import "m3-svelte/etc/recommended-styles.css";
+@import "@fontsource-variable/google-sans-flex/opsz.css";
+
+@function --m3-density(--size) {
+  result: var(--size);
+}
+
+:root {
+  color-scheme: light dark;
+  --m3c-surface: light-dark(#fff4f5, #23020d);
+  --m3c-surface-container-lowest: light-dark(#fff, #000);
+  --m3c-surface-container-low: light-dark(#ffecef, #2c0413);
+  --m3c-surface-container: light-dark(#ffe1e6, #350819);
+  --m3c-surface-container-high: light-dark(#ffd9e1, #3e0d1f);
+  --m3c-surface-container-highest: light-dark(#ffd1db, #471225);
+  --m3c-on-surface: light-dark(#4c212e, #ffdde4);
+  --m3c-on-surface-variant: light-dark(#804c5a, #d99aa9);
+  --m3c-outline: light-dark(#9f6775, #9d6674);
+  --m3c-outline-variant: light-dark(#db9cab, #6a3947);
+  --m3c-inverse-surface: light-dark(#23020d, #fff8f8);
+  --m3c-inverse-on-surface: light-dark(#c98c9b, #794654);
+  --m3c-primary: light-dark(#af2237, #ff8c91);
+  --m3c-on-primary: light-dark(#ffefee, #640015);
+  --m3c-primary-container: #ff747d;
+  --m3c-on-primary-container: #4e000e;
+  --m3c-inverse-primary: light-dark(#fc5b69, #b4263a);
+  --m3c-secondary: light-dark(#9d3659, #fa7ea3);
+  --m3c-on-secondary: light-dark(#ffeff1, #550026);
+  --m3c-secondary-container: light-dark(#ffc1d0, #822045);
+  --m3c-on-secondary-container: light-dark(#832145, #ffbfce);
+  --m3c-tertiary: light-dark(#6e45ac, #c6a2ff);
+  --m3c-on-tertiary: light-dark(#f9efff, #431480);
+  --m3c-tertiary-container: light-dark(#e1cbff, #3c077a);
+  --m3c-on-tertiary-container: light-dark(#5b3198, #c098ff);
+  --m3c-error: light-dark(#b02500, #ff7351);
+  --m3c-on-error: light-dark(#ffefec, #450900);
+  --m3c-error-container: light-dark(#ffc8bb, #5a0e00);
+  --m3c-on-error-container: light-dark(#8f1c00, #ff8a6e);
+  --m3c-shadow: #000;
+  --m3c-scrim: #000;
+  --m3c-on-on-primary: light-dark(#af2136, #ff8c91);
+  --m3c-primary-container-subtle: light-dark(#ffc7c7, #600014);
+  --m3c-on-primary-container-subtle: light-dark(#950726, #ff888d);
+  --m3c-secondary-container-subtle: light-dark(#ffc5d2, #5d002a);
+  --m3c-on-secondary-container-subtle: light-dark(#862347, #ff84a9);
+  --m3c-tertiary-container-subtle: light-dark(#e1cbff, #3c077a);
+  --m3c-on-tertiary-container-subtle: light-dark(#5b3198, #c098ff);
+  --m3c-error-container-subtle: light-dark(#ffc8bb, #5a0e00);
+  --m3c-on-error-container-subtle: light-dark(#8f1c00, #ff8a6e);
+  font-family: "Google Sans Flex", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  background: var(--m3c-surface);
+  color: var(--m3c-on-surface);
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+* { box-sizing: border-box; }
+html { min-width: 320px; background: var(--m3c-surface); scroll-behavior: smooth; }
+body { margin: 0; min-height: 100vh; background: var(--m3c-surface); color: var(--m3c-on-surface); }
+button, a { font: inherit; }
+a { color: inherit; text-decoration: none; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--m3c-tertiary); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
