@@ -21,6 +21,16 @@
   let refreshing = $state(false);
   let initialLoading = $state(true);
 
+  const configuredServices = [
+    { id: "adi-rest", name: "adi.rest", description: "Main website", url: "https://adi.rest/" },
+    { id: "lyrics-api", name: "lyrics.adi.rest", description: "Lyrics API endpoint", url: "https://lyrics.adi.rest/api/" },
+    { id: "imreallyadi-space", name: "imreallyadi.space", description: "Secondary website", url: "https://imreallyadi.space/" }
+  ];
+  const unknownServiceList = () => configuredServices.map((service) => ({
+    ...service, status: "unknown", statusLabel: "Unknown", latest: null,
+    lastSuccessfulCheck: null, lastFailedCheck: null
+  }));
+
   const periods = [{ label: "24 hours", value: "24h" }, { label: "7 days", value: "7d" }, { label: "30 days", value: "30d" }];
   const statusText = { up: "All systems operational", partial: "Partial service disruption", degraded: "Degraded performance", down: "Major outage", unknown: "Status temporarily unavailable" };
   const time = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Awaiting first check";
@@ -77,7 +87,7 @@
       incidents = incidentData.incidents || [];
       domain = domainData;
       failed = false;
-      const results = await Promise.all((status.services || []).map(async (service) => {
+      const results = await Promise.all((data.services || []).map(async (service) => {
         try {
           const result = await fetchJson("/api/history/" + encodeURIComponent(service.id) + "?period=" + selected);
           return [service.id, result];
@@ -86,7 +96,7 @@
       histories = Object.fromEntries(results);
     } catch {
       failed = true;
-      data = { status: "unknown", updatedAt: null, services: [] };
+      data = { status: "unknown", updatedAt: null, services: unknownServiceList(), configurationFallback: true };
     } finally { refreshing = false; initialLoading = false; }
   }
   async function toggleTheme(event) {
@@ -152,7 +162,7 @@
     <section class="hero">
       <div class="status-line"><span class="status-dot {data?.status || 'unknown'}"></span><span>{statusText[data?.status || "unknown"]}</span></div>
       <h1>{data?.status === "up" ? "Everything is running smoothly." : data?.status === "down" || data?.status === "partial" ? "We're investigating a service disruption." : data?.status === "degraded" ? "Some services are running slowly." : "Service status at a glance."}</h1>
-      <div class="hero-meta"><span>{failed ? "Status data could not be loaded." : "Monitoring the services that power adi.rest."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
+      <div class="hero-meta"><span>{failed ? "Live checks are unavailable. Configured services remain listed as Unknown." : data?.configurationFallback ? "Showing configured services while live results are unavailable." : "Monitoring the services that power adi.rest."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
     </section>
 
     {#if activeTab === "overview"}
@@ -163,7 +173,7 @@
         {#if !data}
           <Card variant="outlined"><div class="loading"><span>Checking services…</span></div></Card>
         {:else if !data.services?.length}
-          <Card variant="outlined"><p class="empty">No live results available. Check the API configuration and try again.</p></Card>
+          <Card variant="outlined"><p class="empty">Live monitoring results are unavailable. These configured services are shown as Unknown until real check results can be loaded.</p></Card>
         {:else}
           {#each data.services as service, i (service.id)}
             {@const historyData = histories[service.id]}
