@@ -152,4 +152,14 @@ const server = http.createServer(async (req, res) => {
     else res.end();
   }
 });
-server.listen(PORT, () => console.log(`adi.rest status listening on :${PORT}`));
+server.listen(PORT, () => {
+  console.log(`adi.rest status listening on :${PORT}`);
+  // Keep monitoring independent of page visits. The worker uses a file lock so
+  // a separately scheduled "node monitor.mjs" run cannot write concurrently.
+  const intervalMs = Math.max(15, Number(config.checkIntervalSeconds) || 60) * 1000;
+  runChecks().catch(error => console.error("Initial monitoring run failed:", error.message));
+  const timer = setInterval(() => {
+    runChecks().catch(error => console.error("Scheduled monitoring run failed:", error.message));
+  }, intervalMs);
+  timer.unref();
+});
