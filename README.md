@@ -28,7 +28,7 @@ Requirements: Node.js 22+, a Cloudflare account.
    ```sh
    ```
 
-The monitoring API still requires the storage backend documented in `api/[...route].js`. At present, that implementation uses MongoDB for records and locking. Configure `MONGODB_URI` and `CRON_SECRET` on the app Worker and use the same `CRON_SECRET` on the monitor Worker. Set `MONITOR_API_URL` in `wrangler.monitor.jsonc` to the deployed app origin, then run:
+The current monitoring API still uses MongoDB for records and locking. Configure `MONGODB_URI` and `CRON_SECRET` on the app Worker and use the same `CRON_SECRET` on the monitor Worker. Set `MONITOR_API_URL` in `wrangler.monitor.jsonc` to the deployed app origin, then run:
 
    ```sh
    npm run deploy:monitor
