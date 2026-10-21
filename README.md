@@ -27,9 +27,17 @@ A minimalist SvelteKit status page for adi.rest services, deployed to Vercel. No
 
 You can also import the GitHub repository `adidotzip/nerds` in the Vercel dashboard and let Vercel detect SvelteKit.
 
-## Important storage limitation
+## Vercel monitoring setup
 
-Live checks run in the Vercel server-side `/api/ping` endpoint. Historical monitoring is handled by a separate Cloudflare Worker using R2 object storage and newline-delimited JSON files, not a database. Create an R2 bucket named `adi-rest-status-history`, then deploy the monitor with `npx wrangler deploy --config wrangler.monitor.jsonc`. Ensure `monitor.adi.rest` is available as a Cloudflare custom domain. The Worker checks configured targets every minute and serves `/api/history/:serviceId`, `/api/incidents`, and `/api/status`. History begins accumulating only after the Worker is deployed; no historical uptime is fabricated.
+The site, live checks, scheduled monitor, and history API run on Vercel. MongoDB stores real HTTP check records; Cloudflare Workers and R2 are not required.
+
+1. Set `MONGODB_URI` in the Vercel project environment variables to your MongoDB connection string.
+2. Optionally set `MONGODB_DB` (defaults to `adi_rest_status`).
+3. Set `CRON_SECRET` in Vercel. Use a long random secret.
+4. Confirm the Vercel project is configured to deploy `vercel.json`, which schedules `/api/cron/check` every minute.
+5. Redeploy after setting environment variables.
+
+The cron route requires the `Authorization: Bearer <CRON_SECRET>` header. Each run performs real HTTP checks against the exact URLs in `services.json` and stores results in MongoDB. Records older than 31 days are removed. Live status checks run through the backend as well. Historical uptime is calculated only from recorded checks, so new history starts accumulating after the cron job is successfully running.
 
 ## Monitored services
 
