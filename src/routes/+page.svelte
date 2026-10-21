@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { Button, Card, Divider, Chip, Switch } from "m3-svelte";
+  import { Button, Card, Chip } from "m3-svelte";
 
   let data = $state(null);
   let domain = $state(null);
@@ -83,7 +83,7 @@
                 <div class="service-icon" aria-hidden="true">{service.id === "adi-rest" ? "language" : service.id === "lyrics-api" ? "data_object" : "public"}</div>
                 <div class="service-info"><h3>{service.name}</h3><p>{service.description}</p><a href={service.url} target="_blank" rel="noreferrer">{service.url} ↗</a></div>
                 <div class="metric"><strong>{latency(service.latest?.responseTimeMs)}</strong><span>Response time</span></div>
-                <div class="service-state"><Chip variant="assist">{service.statusLabel || "Unknown"}</Chip><span class="checked">Checked {time(service.latest?.timestamp)}</span></div>
+                <div class="service-state"><Chip variant="general" disabled>{service.statusLabel || "Unknown"}</Chip><span class="checked">Checked {time(service.latest?.timestamp)}</span></div>
               </div>
             </Card>
           {/each}
@@ -92,7 +92,7 @@
     </section>
 
     <section class="section">
-      <div class="section-title"><div><p class="eyebrow">DOMAIN HEALTH</p><h2>imreallyadi.space</h2></div><Chip variant="assist">Registration</Chip></div>
+      <div class="section-title"><div><p class="eyebrow">DOMAIN HEALTH</p><h2>imreallyadi.space</h2></div><Chip variant="general" disabled>Registration</Chip></div>
       <Card variant="outlined">
         <div class="domain-row">
           <div class="domain-copy"><h3>{domain?.expirationDate ? "Configured expiration date" : "Expiration date not verified"}</h3><p>{domain?.expirationDate ? "The date was supplied manually and has not been independently verified. Domain registration and website availability are separate." : "No trustworthy registration date is available. Nothing is guessed."}</p><p class="domain-meta">{domain?.dns ? (domain.dns.ok ? "DNS resolves" : "DNS lookup failed") : "DNS status unavailable"} · {domain?.tls ? (domain.tls.valid ? "HTTPS connection succeeded" : "HTTPS connection failed") : "HTTPS status unavailable"}</p></div>
