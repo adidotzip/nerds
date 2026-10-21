@@ -100,7 +100,8 @@ export default async function handler(req, res) {
     const results = await Promise.all(services.map(checkService));
     const down = results.filter(item => item.status === "down").length;
     const degraded = results.some(item => item.status === "degraded");
-    const status = down === results.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
+    const unknown = results.some(item => item.status === "unknown");
+    const status = unknown ? "unknown" : down === results.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
     return res.status(200).json({
       status,
       message: status === "up" ? "All Systems Operational" : status === "partial" ? "Partial Service Disruption" : status === "down" ? "Major Outage" : "Degraded Performance",
