@@ -1,58 +1,9 @@
 {
-  "checkIntervalSeconds": 60,
-  "staleAfterSeconds": 180,
-  "requestTimeoutMs": 10000,
-  "failureThreshold": 2,
-  "historyRetentionDays": 30,
   "latencyDegradedMs": 1500,
-  "storageDir": "./data",
-  "domainHealth": {
-    "imreallyadi.space": {
-      "expirationDate": null,
-      "expirationSource": "rdap",
-      "note": "Expiration date is unknown until verified from RDAP or configured manually."
-    }
-  },
   "services": [
-    {
-      "id": "adi-rest",
-      "name": "adi.rest",
-      "description": "Main website",
-      "url": "https://adi.rest/",
-      "expectedStatus": [200, 299],
-      "followRedirects": true,
-      "timeoutMs": 10000,
-      "degradedMs": 1500
-    },
-    {
-      "id": "lyrics-api",
-      "name": "Lyrics API",
-      "description": "lyrics.adi.rest/api/",
-      "url": "https://lyrics.adi.rest/api/",
-      "expectedStatus": [200, 299],
-      "followRedirects": true,
-      "timeoutMs": 10000,
-      "degradedMs": 1500
-    },
-    {
-      "id": "imreallyadi-space",
-      "name": "imreallyadi.space",
-      "description": "Secondary website",
-      "url": "https://imreallyadi.space/",
-      "expectedStatus": [200, 299],
-      "followRedirects": true,
-      "timeoutMs": 10000,
-      "degradedMs": 1500
-    },
-    {
-      "id": "drift-adidotzip",
-      "name": "drift.rip/adidotzip",
-      "description": "Hosted resource",
-      "url": "https://drift.rip/adidotzip/",
-      "expectedStatus": [200, 299],
-      "followRedirects": true,
-      "timeoutMs": 10000,
-      "degradedMs": 1500
-    }
+    {"id":"adi-rest","name":"adi.rest","description":"Main website","url":"https://adi.rest/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500},
+    {"id":"lyrics-api","name":"Lyrics API","description":"lyrics.adi.rest/api/","url":"https://lyrics.adi.rest/api/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500},
+    {"id":"imreallyadi-space","name":"imreallyadi.space","description":"Secondary website","url":"https://imreallyadi.space/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500},
+    {"id":"drift-adidotzip","name":"drift.rip/adidotzip","description":"Hosted resource","url":"https://drift.rip/adidotzip/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500}
   ]
 }
