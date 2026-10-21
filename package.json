@@ -24,7 +24,7 @@
     "vite": "^7.3.6",
     "@ktibow/iconset-material-symbols": "^0.0.1764827375",
     "@sveltejs/adapter-vercel": "^5.8.0",
-    "@vercel/blob": "^1.1.1"
+    "mongodb": "^6.21.0"
   },
   "devDependencies": {
     "svelte-check": "^4.7.6",
