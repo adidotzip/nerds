@@ -1,7 +1,6 @@
 <script>
   import { onMount } from "svelte";
   import { Button, Card, Chip, LoadingIndicator, Tabs, ConnectedButtons } from "m3-svelte";
-  import "m3-svelte/etc/layer";
 
 
   let data = $state(null);
@@ -134,10 +133,10 @@
 
 <div class:booting={initialLoading} class="shell">
   <header class="topbar">
-    <a class="brand m3-layer" href="/" aria-label="adi.rest status home">adi.rest</a>
+    <a class="brand" href="/" aria-label="adi.rest status home">adi.rest</a>
     <div class="top-actions">
       <span class="live-indicator"><span></span> Live monitoring</span>
-      <button class="theme-toggle m3-layer" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Switch to light theme" : "Switch to dark theme"}><svg class="theme-icon contrast-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" class="contrast-fill"/></svg></button>
+      <button class="theme-toggle" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Switch to light theme" : "Switch to dark theme"}><svg class="theme-icon contrast-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" class="contrast-fill"/></svg></button>
     </div>
   </header>
 
@@ -146,7 +145,7 @@
     <section class="hero">
       <div class="status-line"><span class="status-dot {data?.status || 'unknown'}"></span><span>{statusText[data?.status || "unknown"]}</span></div>
       <h1>{data?.status === "up" ? "Everything is running smoothly." : data?.status === "down" || data?.status === "partial" ? "We're investigating a service disruption." : data?.status === "degraded" ? "Some services are running slowly." : "Service status at a glance."}</h1>
-      <div class="hero-meta"><span>{failed ? "Live checks are unavailable. Configured services remain listed as Unknown." : data?.configurationFallback ? "Showing configured services while live results are unavailable." : "Monitoring the services that power adi.rest."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
+      <div class="hero-meta"><span>{failed ? "Live checks are unavailable. Configured services remain listed as Unknown." : data?.liveOnly ? "Showing fresh live checks. Historical data is currently unavailable." : data?.configurationFallback ? "Showing configured services while live results are unavailable." : "Monitoring the services that power adi.rest."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
     </section>
 
     {#if activeTab === "overview"}
@@ -162,11 +161,11 @@
           {#each data.services as service, i (service.id)}
             {@const historyData = histories[service.id]}
             <Card variant="outlined">
-              <article class="service-card m3-layer" style={`--item-index:${i}`}>
+              <article class="service-card" style={`--item-index:${i}`}>
                 <div class="service-main">
                   <div class="service-name-line"><span class="status-dot small {service.status || 'unknown'}"></span><h3>{service.name}</h3><span class="status-word {service.status || 'unknown'}">{service.statusLabel || "Unknown"}</span></div>
                   <p class="service-description">{service.description}</p>
-                  <a class="service-url m3-layer" href={service.url} target="_blank" rel="noreferrer">{service.url} <span aria-hidden="true">↗</span></a>
+                  <a class="service-url" href={service.url} target="_blank" rel="noreferrer">{service.url} <span aria-hidden="true">↗</span></a>
                 </div>
                 <div class="service-metrics">
                   <div><span class="metric-label">Response time</span><strong>{latency(service.latest?.responseTimeMs)}</strong></div>
@@ -230,7 +229,7 @@
           {/each}
           {#if !data?.services?.length}<div class="empty">Historical statistics appear after monitoring records are collected.</div>{/if}
         </div>
-        <p class="history-note">Only recorded checks count toward uptime. Missing intervals are unknown, not successful.</p>
+        <p class="history-note">Only recorded checks count toward uptime. Missing intervals are unknown, not successful. When live-only mode is active, historical uptime cannot be verified.</p>
       </Card>
     </section>
 
@@ -272,7 +271,7 @@
     {/if}
   </main>
 
-  <footer><span class="footer-brand">adi.rest</span><span>Live checks, recorded history, no guesswork.</span><a class="m3-layer" href="/api/status">Status API ↗</a></footer>
+  <footer><span class="footer-brand">adi.rest</span><span>Live checks. Historical data is shown only when available.</span><a href="/api/status">Status API ↗</a></footer>
 </div>
 
 <style>
@@ -284,7 +283,7 @@
   .boot-screen p{margin:0;font-size:14px;font-weight:600;letter-spacing:-.01em}
   .boot-caption{font-size:12px;color:var(--m3c-on-surface-variant);animation:soft-pulse 1.8s ease-in-out infinite}
   .booting{visibility:hidden;pointer-events:none}
-  .boot-screen{isolation:isolate}\n  .boot-screen :global(.m3-loading-indicator){display:initial}
+  .boot-screen :global(.m3-loading-indicator){display:initial}
   @keyframes boot-arrive{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes soft-pulse{0%,100%{opacity:.5}50%{opacity:1}}
   .theme-toggle{overflow:hidden;flex-shrink:0;transition:transform .2s ease,background-color .24s ease,border-color .24s ease,color .24s ease}
@@ -296,15 +295,15 @@
   button:not(:disabled):active{transform:scale(.97)}
   button:disabled{opacity:.65;cursor:wait}
   a:hover{color:var(--m3c-primary)}
-  .service-list :global(.m3-card){animation:none}
-  .service-card{border-radius:28px;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease}
+  .service-list :global(.m3-card){animation:none;box-shadow:none!important;overflow:hidden}
+  .service-card{border-radius:22px;transition:background-color .22s ease,border-color .22s ease}
   .service-card:hover{transform:none}
   .uptime-bar{min-height:100%;transform-origin:center;animation:bar-grow .45s cubic-bezier(.2,.8,.2,1) both;border-radius:999px;min-width:0}
   .uptime-bar.unknown{background:color-mix(in srgb,var(--m3c-outline-variant) 58%,transparent)}
   .uptime-bar:hover{transform:scaleY(1.14);filter:saturate(1.15)}
   .graph-line{stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 2px 2px color-mix(in srgb,var(--m3c-primary) 15%,transparent))}
   .graph-grid{stroke-linecap:round;stroke-linejoin:round}.latency-graph svg{border-radius:18px;overflow:hidden}
-  .page-tabs{padding:14px 0 6px;position:relative;z-index:2;background:transparent;min-height:66px;display:flex;align-items:center}\n  .tab-panel{transform-origin:top center;min-width:0;animation:panel-fade .22s ease both;contain:layout style}\n  .m3-layer{isolation:isolate}\n  .period-switch{transition:background-color .25s ease,border-color .25s ease}
+  .page-tabs{padding:14px 0 6px;position:relative;z-index:2;background:transparent;min-height:66px;display:flex;align-items:center;overflow:visible}\n  .tab-panel{transform-origin:top center;min-width:0;animation:panel-fade .22s ease both;contain:layout style}\n  .m3-layer{isolation:isolate}\n  .period-switch{transition:background-color .25s ease,border-color .25s ease}
   .period-switch button{border-radius:999px;transition:background-color .25s ease,color .25s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
   .period-switch button.active{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--m3c-primary) 18%,transparent)}
   .period-switch button:not(:disabled):hover{transform:translateY(-1px)}
