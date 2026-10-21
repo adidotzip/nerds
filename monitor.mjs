@@ -3,7 +3,6 @@ import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { lookup } from "node:dns/promises";
 import tls from "node:tls";
-import { domainToASCII } from "node:url";
 
 const configPath = resolve(process.env.STATUS_CONFIG || "./services.json");
 const config = JSON.parse(await readFile(configPath, "utf8"));
@@ -140,7 +139,6 @@ async function runChecks() {
       if (!safeId(service.id)) throw new Error(`Invalid service id: ${service.id}`);
       const rows = await readJsonLines(historyPath(service.id));
       const prior = rows.filter(r => r.serviceId === service.id).at(-1);
-      const priorFailures = [...rows].reverse().slice(0, config.failureThreshold || 2).every(r => r.success === false);
       const check = await checkService(service);
       await appendRecord(historyPath(service.id), check);
       const recentRows = [...rows, check].slice(-(config.failureThreshold || 2));
