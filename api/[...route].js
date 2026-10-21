@@ -1,5 +1,7 @@
 import { lookup } from "node:dns/promises";
-import config from "../services.json" with { type: "json" };
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const config = require("../services.json");
 
 const services = config.services;
 const statusNames = { up: "Operational", degraded: "Degraded", down: "Outage", unknown: "Unknown" };
@@ -14,7 +16,7 @@ async function checkService(service) {
     const response = await fetch(service.url, {
       method: "GET",
       redirect: "follow",
-      signal: AbortSignal.timeout(service.timeoutMs || 10000),
+      signal: AbortSignal.timeout(Math.min(service.timeoutMs || 4000, 4000)),
       headers: { "user-agent": "adi.rest-status/2.0 (+https://adi.rest)" }
     });
     statusCode = response.status;
@@ -53,7 +55,7 @@ async function domainHealth() {
   let expirationDate = null;
   try {
     const response = await fetch(`https://rdap.org/domain/${host}`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(3000),
       headers: { accept: "application/rdap+json" }
     });
     if (response.ok) {
