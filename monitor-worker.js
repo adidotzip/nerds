@@ -69,7 +69,7 @@ async function allHistory(bucket, serviceId, period) {
   const cutoff = Date.now() - days * 86400000;
   const listed = await bucket.list({ prefix: `history/${serviceId}/`, limit: 1000 });
   const selected = listed.objects.filter((object) => {
-    const keyDate = object.key.split("/").at(-1)?.replace(/\\.jsonl$/, "");
+    const keyDate = object.key.split("/").at(-1)?.replace(/\.jsonl$/, "");
     return Date.parse(keyDate + "T00:00:00Z") >= Date.now() - MAX_HISTORY_DAYS * 86400000;
   });
   const rows = [];
