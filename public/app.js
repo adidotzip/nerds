@@ -8,9 +8,10 @@ const statusCopy = {
 };
 const formatLatency = value => Number.isFinite(value) ? `${Math.round(value)} ms` : "—";
 const formatTime = value => value ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(value)) : "Not checked yet";
-const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]);
+const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;',"'":"&#39;" })[c]);
 function setStatus(element, status) {
-  element.className = element.className.replace(/\b(up|degraded|down|unknown|partial)\b/g, "").trim() + " " + status;
+  element.classList.remove("up", "degraded", "down", "unknown", "partial");
+  element.classList.add(status);
 }
 function renderService(service) {
   const node = $("#service-template").content.firstElementChild.cloneNode(true);
@@ -34,7 +35,6 @@ function renderStatus(data) {
   $("#overall-title").textContent = copy[0];
   $("#overall-description").textContent = copy[1];
   setStatus($("#overall-dot"), status);
-  $("#overall-dot").classList.add(status);
   $("#updated-at").textContent = data.updatedAt ? "Checked " + formatTime(data.updatedAt) : "Waiting for live results";
   $("#footer-refresh").textContent = data.updatedAt ? "Checked " + formatTime(data.updatedAt) : "No live result yet";
   $("#service-count").textContent = `${data.services.length} targets`;
@@ -58,7 +58,7 @@ async function loadDomain() {
       $("#domain-days-label").textContent = "days remaining";
     }
     const dns = data.dns ? (data.dns.ok ? "DNS resolves" : "DNS lookup failed") : "DNS status unavailable";
-    const tls = data.tls ? (data.tls.valid ? "HTTPS certificate valid" : "HTTPS certificate not validated") : "HTTPS status unavailable";
+    const tls = data.tls ? (data.tls.valid ? "HTTPS connection succeeded" : "HTTPS connection failed") : "HTTPS status unavailable";
     $("#domain-meta").textContent = `${dns} · ${tls}${data.tls?.expiresAt ? " · certificate expires " + new Date(data.tls.expiresAt).toLocaleDateString() : ""}${data.checkedAt ? " · Checked " + formatTime(data.checkedAt) : ""}`;
   } catch {
     $("#domain-title").textContent = "Expiration date not verified";
@@ -79,13 +79,22 @@ async function refresh() {
   }
   await loadDomain();
 }
+
 const themeToggle = $("#theme-toggle");
-const savedTheme = (() => { try { return localStorage.getItem("adi-theme"); } catch { return null; } })();
-if (savedTheme === "dark" || savedTheme === "light") document.documentElement.dataset.theme = savedTheme;
+function readSavedTheme() {
+  try { return localStorage.getItem("adi-theme"); } catch { return null; }
+}
+const savedTheme = readSavedTheme();
+const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false;
+document.documentElement.dataset.theme = savedTheme === "dark" || savedTheme === "light" ? savedTheme : (systemDark ? "dark" : "light");
+
 function updateThemeButton() {
   const dark = document.documentElement.dataset.theme === "dark";
   themeToggle.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
   themeToggle.title = dark ? "Switch to light mode" : "Switch to dark mode";
+  themeToggle.innerHTML = dark
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.1A8.3 8.3 0 0 1 8.9 3.8 8.4 8.4 0 1 0 20.2 15.1Z"/></svg>';
 }
 themeToggle.addEventListener("click", () => {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
@@ -94,6 +103,7 @@ themeToggle.addEventListener("click", () => {
   updateThemeButton();
 });
 updateThemeButton();
+
 async function renderServiceDetail(id) {
   if (!/^[a-z0-9-]+$/.test(id)) return;
   try {
