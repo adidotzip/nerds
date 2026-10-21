@@ -96,7 +96,8 @@ export default async function handler(req, res) {
   if (parts[0] !== "api") return res.status(404).json({ error: "Not found" });
   try {
     if (parts[1] === "cron" && parts[2] === "check" && parts.length === 3) {
-      if (process.env.CRON_SECRET && req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Unauthorized" });
+      if (!process.env.CRON_SECRET) return res.status(503).json({ error: "CRON_SECRET is not configured" });
+      if (req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Unauthorized" });
       const locks = (await database()).collection("monitor_locks"), now = new Date();
       const active = await locks.findOne({ _id: "check", expiresAt: { $gt: now } });
       if (active) return res.status(409).json({ skipped: true, reason: "Check already running" });
