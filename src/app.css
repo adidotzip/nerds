@@ -30,6 +30,7 @@
 :root {
   @apply --m3-body-large;
   --m3-font: "Google Sans Rounded", system-ui, sans-serif;
+  font-family: "Google Sans Rounded", system-ui, sans-serif;
   color-scheme: light dark;
   --m3c-surface: light-dark(#fff4f5, #23020d);
   --m3c-surface-container-lowest: light-dark(#fff, #000);
