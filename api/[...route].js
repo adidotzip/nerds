@@ -1,8 +1,22 @@
 import config from "../services.json";
-import { del, list, put } from "@vercel/blob";
+import { MongoClient } from "mongodb";
 
 const services = config.services;
-const token = () => process.env.BLOB_READ_WRITE_TOKEN;
+const mongoUri = () => process.env.MONGODB_URI;
+let clientPromise;
+async function getCollection() {
+  if (!mongoUri()) throw new Error("MONGODB_URI is not configured");
+  if (!clientPromise) {
+    const client = new MongoClient(mongoUri(), { serverSelectionTimeoutMS: 5000 });
+    clientPromise = client.connect().catch((error) => { clientPromise = null; throw error; });
+  }
+  const client = await clientPromise;
+  const db = client.db(process.env.MONGODB_DB || "adi_rest_status");
+  const collection = db.collection("checks");
+  await collection.createIndex({ serviceId: 1, timestamp: -1 });
+  await collection.createIndex({ timestamp: 1 }, { expireAfterSeconds: 31 * 86400 });
+  return collection;
+}
 const validPeriods = ["24h", "7d", "30d"];
 
 function headers(res, cache = "no-store") {
@@ -50,52 +64,17 @@ async function check(service) {
 }
 
 async function saveChecks(records) {
-  if (!token()) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
-  const date = new Date().toISOString().slice(0, 10);
-  for (const service of services) {
-    const pathname = `history/${service.id}/${date}.jsonl`;
-    const result = await list({ prefix: pathname, limit: 10, token: token() });
-    const blob = result.blobs.find((item) => item.pathname === pathname);
-    let previous = "";
-    if (blob) {
-      const response = await fetch(blob.url, { cache: "no-store" });
-      if (!response.ok) throw new Error(`Unable to read existing history for ${service.id}`);
-      previous = await response.text();
-    }
-    const record = records.find((item) => item.serviceId === service.id);
-    if (!record) continue;
-    await put(pathname, previous + JSON.stringify(record) + "\n", {
-      access: "public", addRandomSuffix: false, allowOverwrite: true,
-      contentType: "application/x-ndjson", token: token()
-    });
-  }
-  const all = await list({ prefix: "history/", limit: 1000, token: token() });
-  const expiredBefore = Date.now() - 31 * 86400000;
-  for (const blob of all.blobs) {
-    const day = blob.pathname.split("/").at(-1)?.replace(/\\.jsonl$/, "");
-    if (day && Date.parse(day + "T23:59:59.999Z") < expiredBefore) await del(blob.url, { token: token() });
-  }
+  const collection = await getCollection();
+  if (records.length) await collection.insertMany(records, { ordered: false });
+  await collection.deleteMany({ timestamp: { $lt: new Date(Date.now() - 31 * 86400000).toISOString() } });
 }
 
 async function historyFor(serviceId, period) {
-  if (!token()) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
-  const start = cutoff(period);
-  const result = await list({ prefix: `history/${serviceId}/`, limit: 100, token: token() });
-  const records = [];
-  for (const blob of result.blobs) {
-    const day = blob.pathname.split("/").at(-1)?.replace(/\.jsonl$/, "");
-    if (!day || Date.parse(day + "T23:59:59.999Z") < start) continue;
-    const response = await fetch(blob.url, { cache: "no-store" });
-    if (!response.ok) continue;
-    for (const line of (await response.text()).split("\n")) {
-      if (!line.trim()) continue;
-      try {
-        const item = JSON.parse(line);
-        if (Date.parse(item.timestamp) >= start) records.push(item);
-      } catch { /* Ignore corrupt lines without inventing replacement data. */ }
-    }
-  }
-  return records.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+  const collection = await getCollection();
+  return collection.find(
+    { serviceId, timestamp: { $gte: new Date(cutoff(period)).toISOString() } },
+    { projection: { _id: 0 } }
+  ).sort({ timestamp: 1 }).limit(50000).toArray();
 }
 
 function stats(records) {
@@ -158,7 +137,7 @@ export default async function handler(req, res) {
       return send(res, 200, { recorded: records.length, checkedAt: new Date().toISOString() });
     } catch (error) {
       console.error("Scheduled monitoring failed:", error?.message || error);
-      return send(res, 503, { error: "Checks ran, but history could not be saved. Check BLOB_READ_WRITE_TOKEN." });
+      return send(res, 503, { error: "Checks ran, but history could not be saved. Check MONGODB_URI and database connectivity." });
     }
   }
 
@@ -166,7 +145,7 @@ export default async function handler(req, res) {
     const records = await Promise.all(services.map(check));
     const views = records.map((record, index) => view(services[index], record));
     const result = summary(views);
-    return send(res, 200, { ...result, updatedAt: records.map((item) => item.timestamp).sort().at(-1), liveOnly: true, historyAvailable: Boolean(token()), services: views });
+    return send(res, 200, { ...result, updatedAt: records.map((item) => item.timestamp).sort().at(-1), liveOnly: true, historyAvailable: Boolean(mongoUri()), services: views });
   }
 
   if (parts[1] === "status" && parts.length === 3) {
@@ -190,7 +169,7 @@ export default async function handler(req, res) {
       return send(res, 200, parts[1] === "uptime" ? { serviceId: service.id, uptime } : { serviceId: service.id, period, history: period === "7d" ? h7 : period === "30d" ? h30 : h24, uptime });
     } catch (error) {
       console.error("History unavailable:", error?.message || error);
-      return send(res, 503, { error: "Monitoring history is unavailable. Configure Vercel Blob storage." });
+      return send(res, 503, { error: "Monitoring history is unavailable. Configure MONGODB_URI and database connectivity." });
     }
   }
 
