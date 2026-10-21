@@ -261,6 +261,7 @@
   .boot-caption{font-size:12px;color:var(--m3c-on-surface-variant);animation:soft-pulse 1.8s ease-in-out infinite}
   .booting{visibility:hidden;pointer-events:none}
   .boot-screen{isolation:isolate}
+  .boot-screen :global(.m3-loading-indicator){display:none}
   .boot-screen::before{content:"";width:42px;height:42px;border:2px solid var(--m3c-outline-variant);border-top-color:var(--m3c-primary);border-radius:50%;animation:boot-spin .8s linear infinite}
   .boot-screen :global(.m3-loading-indicator){display:none}
   @keyframes boot-spin{to{transform:rotate(360deg)}}
@@ -284,6 +285,7 @@
   .service-card{border-radius:28px}
   .service-card:hover{transform:translateY(-2px)}
   .uptime-bar{min-height:100%;transform-origin:center;animation:bar-grow .45s cubic-bezier(.2,.8,.2,1) both}
+  .uptime-bar.unknown{background:color-mix(in srgb,var(--m3c-outline-variant) 58%,transparent)}
   .uptime-bar:hover{transform:scaleY(1.14);filter:saturate(1.15)}
   .graph-line{stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards}
   .graph-grid{stroke-linecap:round}
