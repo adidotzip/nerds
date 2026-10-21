@@ -14,7 +14,6 @@ async function getCollection() {
   const db = client.db(process.env.MONGODB_DB || "adi_rest_status");
   const collection = db.collection("checks");
   await collection.createIndex({ serviceId: 1, timestamp: -1 });
-  await collection.createIndex({ timestamp: 1 }, { expireAfterSeconds: 31 * 86400 });
   return collection;
 }
 const validPeriods = ["24h", "7d", "30d"];
