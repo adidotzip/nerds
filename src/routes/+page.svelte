@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { fade } from "svelte/transition";
   import { Button, Card, Chip, LoadingIndicator } from "m3-svelte";
 
   let data = $state(null);
@@ -10,19 +11,27 @@
   let dark = $state(false);
   let selected = $state("24h");
   let refreshing = $state(false);
+  let initialLoading = $state(true);
 
   const periods = [{ label: "24 hours", value: "24h" }, { label: "7 days", value: "7d" }, { label: "30 days", value: "30d" }];
   const statusText = { up: "All systems operational", partial: "Partial service disruption", degraded: "Degraded performance", down: "Major outage", unknown: "Status temporarily unavailable" };
   const time = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Awaiting first check";
   const latency = (value) => Number.isFinite(value) ? Math.round(value) + " ms" : "—";
   const percent = (value) => Number.isFinite(value) ? value.toFixed(2) + "%" : "Collecting data";
-  const periodMs = (period) => period === "7d" ? 7 * 86400000 : period === "30d" ? 30 * 86400000 : 86400000;
   const points = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs) && item.success);
   const pathFor = (history, width = 560, height = 88) => {
     const values = points(history);
     if (values.length < 2) return "";
     const max = Math.max(...values.map((p) => p.responseTimeMs), 1);
-    return values.map((p, i) => `${i ? "L" : "M"} ${(i / (values.length - 1)) * width} ${height - (p.responseTimeMs / max) * (height - 8) - 4}`).join(" ");
+    const coords = values.map((p, i) => ({ x: (i / (values.length - 1)) * width, y: height - (p.responseTimeMs / max) * (height - 12) - 6 }));
+    let path = `M ${coords[0].x} ${coords[0].y}`;
+    for (let i = 1; i < coords.length; i++) {
+      const prev = coords[i - 1], current = coords[i];
+      const midX = (prev.x + current.x) / 2;
+      path += ` Q ${midX} ${prev.y} ${midX} ${(prev.y + current.y) / 2}`;
+      if (i === coords.length - 1) path += ` T ${current.x} ${current.y}`;
+    }
+    return path;
   };
   const bars = (history) => {
     const list = history || [];
@@ -48,7 +57,7 @@
     try {
       const [status, incidentData, domainData] = await Promise.all([
         fetchJson("/api/status"),
-        fetchJson("/api/incidents?period=" + selected).catch(() => ({ incidents: [] })),
+        fetchJson("/api/incidents?period=24h").catch(() => ({ incidents: [] })),
         fetchJson("/api/domain-health").catch(() => null)
       ]);
       data = status;
@@ -65,7 +74,7 @@
     } catch {
       failed = true;
       data = { status: "unknown", updatedAt: null, services: [] };
-    } finally { refreshing = false; }
+    } finally { refreshing = false; initialLoading = false; }
   }
   async function toggleTheme(event) {
     const next = !dark;
@@ -102,16 +111,25 @@
   <meta name="description" content="Live service status, historical uptime and response-time graphs for adi.rest." />
 </svelte:head>
 
-<div class="shell">
+{#if initialLoading}
+  <div class="boot-screen" role="status" aria-live="polite" transition:fade={{ duration: 220 }}>
+    <span class="boot-brand">adi.rest</span>
+    <LoadingIndicator />
+    <p>Connecting to live monitoring</p>
+    <span class="boot-caption">Checking services and recent results</span>
+  </div>
+{/if}
+
+<div class:booting={initialLoading} class="shell">
   <header class="topbar">
     <a class="brand" href="/" aria-label="adi.rest status home">adi.rest</a>
     <div class="top-actions">
       <span class="live-indicator"><span></span> Live monitoring</span>
       <button class="theme-toggle" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Light theme" : "Dark theme"}>
         {#if dark}
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+          <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
         {:else}
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.1A8.5 8.5 0 0 1 8.9 3.8 8.6 8.6 0 1 0 20.2 15.1Z"/></svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.1A8.5 8.5 0 0 1 8.9 3.8 8.6 8.6 0 1 0 20.2 15.1Z"/></svg>
         {/if}
       </button>
     </div>
@@ -132,10 +150,10 @@
         {:else if !data.services?.length}
           <Card variant="outlined"><p class="empty">No live results available. Check the API configuration and try again.</p></Card>
         {:else}
-          {#each data.services as service (service.id)}
+          {#each data.services as service, i (service.id)}
             {@const historyData = histories[service.id]}
             <Card variant="outlined">
-              <article class="service-card">
+              <article class="service-card" style={`--item-index:${i}`}>
                 <div class="service-main">
                   <div class="service-name-line"><span class="status-dot small {service.status || 'unknown'}"></span><h3>{service.name}</h3><span class="status-word {service.status || 'unknown'}">{service.statusLabel || "Unknown"}</span></div>
                   <p class="service-description">{service.description}</p>
@@ -178,7 +196,7 @@
       <div class="section-heading"><div><p class="eyebrow">HISTORICAL DATA</p><h2>Uptime & response times</h2></div>
         <div class="period-switch" aria-label="History time range">
           {#each periods as period}
-            <button class:active={selected === period.value} onclick={() => changePeriod(period.value)} aria-pressed={selected === period.value}>{period.label}</button>
+            <button class:active={selected === period.value} class:loading-period={refreshing && selected === period.value} onclick={() => changePeriod(period.value)} aria-pressed={selected === period.value} disabled={refreshing}>{period.label}</button>
           {/each}
         </div>
       </div>
@@ -229,5 +247,47 @@
 </div>
 
 <style>
-  .shell{width:min(1040px,100%);margin:auto;padding:0 32px}.topbar{min-height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--m3c-outline-variant)}.brand{font-size:20px;font-weight:700;letter-spacing:-.055em}.top-actions{display:flex;align-items:center;gap:20px}.live-indicator{display:flex;align-items:center;gap:8px;color:var(--m3c-on-surface-variant);font-size:12px}.live-indicator>span{width:7px;height:7px;border-radius:50%;background:#258653}.theme-toggle{width:40px;height:40px;border:1px solid var(--m3c-outline-variant);border-radius:50%;display:grid;place-items:center;background:var(--m3c-surface-container-low);color:var(--m3c-on-surface);cursor:pointer}.theme-toggle svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.hero{padding:58px 0 42px;border-bottom:1px solid var(--m3c-outline-variant)}.status-line{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;margin-bottom:22px;text-transform:capitalize}.status-dot{width:10px;height:10px;border-radius:50%;background:var(--m3c-outline);flex-shrink:0}.status-dot.small{width:8px;height:8px}.status-dot.up{background:#258653}.status-dot.degraded,.status-dot.partial{background:#b87917}.status-dot.down{background:var(--m3c-error)}h1{font-size:clamp(36px,5.6vw,58px);font-weight:650;letter-spacing:-.055em;line-height:1.06;max-width:760px;margin:0;text-wrap:balance}.hero-meta{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:24px;color:var(--m3c-on-surface-variant);font-size:12px}.meta-divider{width:3px;height:3px;border-radius:50%;background:var(--m3c-outline)}.section{padding-top:40px}.section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:17px}.eyebrow{font-size:10px;font-weight:650;letter-spacing:.13em;color:var(--m3c-on-surface-variant);margin:0 0 7px}h2{margin:0;font-size:25px;letter-spacing:-.04em;font-weight:650}.subtle{font-size:12px;color:var(--m3c-on-surface-variant);padding-bottom:4px}.service-list{display:grid;gap:12px}.service-card{padding:2px}.service-main{min-width:0}.service-name-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.service-name-line h3{font-size:16px;font-weight:650;margin:0;letter-spacing:-.02em}.status-word{font-size:11px;color:var(--m3c-on-surface-variant);border:1px solid var(--m3c-outline-variant);border-radius:999px;padding:3px 8px}.status-word.up{color:#258653}.status-word.degraded,.status-word.partial{color:#b87917}.status-word.down{color:var(--m3c-error)}.service-description{font-size:12px;color:var(--m3c-on-surface-variant);margin:7px 0 3px}.service-url{font-size:11px;color:var(--m3c-primary);overflow-wrap:anywhere}.service-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:20px 0 18px;margin-top:16px;border-top:1px solid var(--m3c-outline-variant)}.service-metrics>div{display:grid;gap:6px}.metric-label,.history-stat>span{font-size:11px;color:var(--m3c-on-surface-variant)}.service-metrics strong{font-size:17px;font-weight:650;font-variant-numeric:tabular-nums}.uptime-title{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--m3c-on-surface-variant);margin-bottom:9px}.uptime-bars{display:grid;grid-template-columns:repeat(60,minmax(2px,1fr));gap:3px;height:31px}.uptime-bar{border-radius:3px;background:var(--m3c-outline-variant);min-width:0}.uptime-bar.up{background:#2f9660}.uptime-bar.degraded{background:#d39a36}.uptime-bar.down{background:#c94d54}.bar-labels{display:flex;justify-content:space-between;margin-top:7px;color:var(--m3c-on-surface-variant);font-size:10px}.latency-graph{margin-top:22px}.latency-graph svg{width:100%;height:88px;overflow:visible}.graph-grid{fill:none;stroke:var(--m3c-outline-variant);stroke-width:1;stroke-dasharray:3 5}.graph-line{fill:none;stroke:var(--m3c-primary);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.graph-empty{height:72px;display:flex;align-items:center;color:var(--m3c-on-surface-variant);font-size:12px}.service-foot{display:flex;flex-wrap:wrap;gap:8px 18px;border-top:1px solid var(--m3c-outline-variant);padding-top:13px;margin-top:8px;color:var(--m3c-on-surface-variant);font-size:10px}.period-switch{display:flex;gap:3px;padding:3px;border:1px solid var(--m3c-outline-variant);border-radius:999px}.period-switch button{border:0;background:transparent;color:var(--m3c-on-surface-variant);padding:7px 11px;border-radius:999px;font-size:11px;cursor:pointer}.period-switch button.active{background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container)}.history-overview{display:grid}.history-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 150px;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--m3c-outline-variant)}.history-row:first-child{padding-top:0}.history-row:last-child{border-bottom:0;padding-bottom:0}.history-row>div:first-child{display:grid;gap:5px}.history-row strong{font-size:13px;font-weight:650}.history-row>div:first-child span{font-size:11px;color:var(--m3c-on-surface-variant)}.history-stat{display:grid;gap:5px}.history-note{margin:18px 0 0;padding-top:14px;border-top:1px solid var(--m3c-outline-variant);font-size:11px;color:var(--m3c-on-surface-variant);line-height:1.6}.incident-list{display:grid}.incident-row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--m3c-outline-variant)}.incident-row:last-child{border:0;padding-bottom:0}.incident-mark{width:8px;height:8px;border-radius:50%;background:var(--m3c-error);margin-top:5px;flex-shrink:0}.incident-row>div{flex:1;min-width:0}.incident-row strong{font-size:13px}.incident-row p{margin:4px 0 0;font-size:12px;color:var(--m3c-on-surface-variant);overflow-wrap:anywhere}.incident-row time{font-size:10px;color:var(--m3c-on-surface-variant);text-align:right}.empty-incidents,.empty{padding:24px 4px;text-align:center;color:var(--m3c-on-surface-variant);font-size:12px;line-height:1.7}.empty-check{display:grid;place-items:center;width:34px;height:34px;margin:0 auto 12px;border-radius:50%;background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container);font-size:18px}.empty-incidents strong{display:block;color:var(--m3c-on-surface);font-size:13px}.empty-incidents p{max-width:460px;margin:7px auto 0}.domain-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px}.domain-copy h3{font-size:15px;margin:0 0 7px}.domain-copy p{font-size:12px;color:var(--m3c-on-surface-variant);line-height:1.7;margin:0 0 5px}.domain-meta{padding-top:6px}.countdown{text-align:right;min-width:100px}.countdown strong{display:block;font-size:32px;font-weight:650;letter-spacing:-.05em;font-variant-numeric:tabular-nums}.countdown span{font-size:11px;color:var(--m3c-on-surface-variant)}.loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:25px;color:var(--m3c-on-surface-variant);font-size:13px}footer{margin-top:48px;min-height:78px;border-top:1px solid var(--m3c-outline-variant);display:flex;align-items:center;gap:12px;color:var(--m3c-on-surface-variant);font-size:11px}.footer-brand{font-size:14px;font-weight:700;letter-spacing:-.04em;color:var(--m3c-on-surface)}footer a{margin-left:auto;color:var(--m3c-primary)}::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}::view-transition-new(root){clip-path:circle(0 at var(--theme-x,95%) var(--theme-y,30px));animation:theme-reveal .42s ease-out forwards}::view-transition-old(root){z-index:1}@keyframes theme-reveal{to{clip-path:circle(150vmax at var(--theme-x,95%) var(--theme-y,30px))}}@media(max-width:700px){.shell{padding:0 20px}.hero{padding:44px 0 34px}.section{padding-top:32px}.service-metrics{gap:8px}.history-row{grid-template-columns:minmax(0,1fr) 105px 105px;gap:9px}.section-heading{align-items:flex-start;flex-wrap:wrap}.period-switch{max-width:100%}.period-switch button{padding:7px 9px}.domain-row{gap:12px}}@media(max-width:440px){.shell{padding:0 14px}.topbar{min-height:66px}.live-indicator{font-size:10px}.top-actions{gap:10px}.hero{padding-top:38px}h1{font-size:36px}.hero-meta{gap:7px}.service-metrics strong{font-size:15px}.service-foot{gap:7px 12px}.history-row{grid-template-columns:minmax(0,1fr) 86px 86px}.history-row strong{font-size:11px}.history-row>div:first-child span,.history-stat>span{font-size:10px}.period-switch button{font-size:10px;padding:7px}.countdown strong{font-size:26px}.countdown{min-width:70px}.uptime-bars{gap:2px;height:25px}footer{flex-wrap:wrap;padding:16px 0}footer a{margin-left:auto}}
+  .shell{width:min(1040px,100%);margin:auto;padding:0 32px}.topbar{min-height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--m3c-outline-variant)}.brand{font-size:20px;font-weight:700;letter-spacing:-.055em}.top-actions{display:flex;align-items:center;gap:20px}.live-indicator{display:flex;align-items:center;gap:8px;color:var(--m3c-on-surface-variant);font-size:12px}.live-indicator>span{width:7px;height:7px;border-radius:50%;background:#258653}.theme-toggle{width:40px;height:40px;border:1px solid var(--m3c-outline-variant);border-radius:50%;display:grid;place-items:center;background:var(--m3c-surface-container-low);color:var(--m3c-on-surface);cursor:pointer}.theme-toggle svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.hero{padding:58px 0 42px;border-bottom:1px solid var(--m3c-outline-variant)}.status-line{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;margin-bottom:22px;text-transform:capitalize}.status-dot{width:10px;height:10px;border-radius:50%;background:var(--m3c-outline);flex-shrink:0}.status-dot.small{width:8px;height:8px}.status-dot.up{background:#258653}.status-dot.degraded,.status-dot.partial{background:#b87917}.status-dot.down{background:var(--m3c-error)}h1{font-size:clamp(36px,5.6vw,58px);font-weight:650;letter-spacing:-.055em;line-height:1.06;max-width:760px;margin:0;text-wrap:balance}.hero-meta{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:24px;color:var(--m3c-on-surface-variant);font-size:12px}.meta-divider{width:3px;height:3px;border-radius:50%;background:var(--m3c-outline)}.section{padding-top:40px}.section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:17px}.eyebrow{font-size:10px;font-weight:650;letter-spacing:.13em;color:var(--m3c-on-surface-variant);margin:0 0 7px}h2{margin:0;font-size:25px;letter-spacing:-.04em;font-weight:650}.subtle{font-size:12px;color:var(--m3c-on-surface-variant);padding-bottom:4px}.service-list{display:grid;gap:12px}.service-card{padding:2px}.service-main{min-width:0}.service-name-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.service-name-line h3{font-size:16px;font-weight:650;margin:0;letter-spacing:-.02em}.status-word{font-size:11px;color:var(--m3c-on-surface-variant);border:1px solid var(--m3c-outline-variant);border-radius:999px;padding:3px 8px}.status-word.up{color:#258653}.status-word.degraded,.status-word.partial{color:#b87917}.status-word.down{color:var(--m3c-error)}.service-description{font-size:12px;color:var(--m3c-on-surface-variant);margin:7px 0 3px}.service-url{font-size:11px;color:var(--m3c-primary);overflow-wrap:anywhere}.service-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:20px 0 18px;margin-top:16px;border-top:1px solid var(--m3c-outline-variant)}.service-metrics>div{display:grid;gap:6px}.metric-label,.history-stat>span{font-size:11px;color:var(--m3c-on-surface-variant)}.service-metrics strong{font-size:17px;font-weight:650;font-variant-numeric:tabular-nums}.uptime-title{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--m3c-on-surface-variant);margin-bottom:9px}.uptime-bars{display:grid;grid-template-columns:repeat(60,minmax(2px,1fr));gap:3px;height:31px}.uptime-bar{border-radius:999px;background:var(--m3c-outline-variant);min-width:0}.uptime-bar.up{background:#2f9660}.uptime-bar.degraded{background:#d39a36}.uptime-bar.down{background:#c94d54}.bar-labels{display:flex;justify-content:space-between;margin-top:7px;color:var(--m3c-on-surface-variant);font-size:10px}.latency-graph{margin-top:22px}.latency-graph svg{width:100%;height:88px;overflow:visible}.graph-grid{fill:none;stroke:var(--m3c-outline-variant);stroke-width:1;stroke-dasharray:3 5}.graph-line{fill:none;stroke:var(--m3c-primary);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.graph-empty{height:72px;display:flex;align-items:center;color:var(--m3c-on-surface-variant);font-size:12px}.service-foot{display:flex;flex-wrap:wrap;gap:8px 18px;border-top:1px solid var(--m3c-outline-variant);padding-top:13px;margin-top:8px;color:var(--m3c-on-surface-variant);font-size:10px}.period-switch{display:flex;gap:3px;padding:3px;border:1px solid var(--m3c-outline-variant);border-radius:999px}.period-switch button{border:0;background:transparent;color:var(--m3c-on-surface-variant);padding:7px 11px;border-radius:999px;font-size:11px;cursor:pointer}.period-switch button.active{background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container)}.history-overview{display:grid}.history-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 150px;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--m3c-outline-variant)}.history-row:first-child{padding-top:0}.history-row:last-child{border-bottom:0;padding-bottom:0}.history-row>div:first-child{display:grid;gap:5px}.history-row strong{font-size:13px;font-weight:650}.history-row>div:first-child span{font-size:11px;color:var(--m3c-on-surface-variant)}.history-stat{display:grid;gap:5px}.history-note{margin:18px 0 0;padding-top:14px;border-top:1px solid var(--m3c-outline-variant);font-size:11px;color:var(--m3c-on-surface-variant);line-height:1.6}.incident-list{display:grid}.incident-row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--m3c-outline-variant)}.incident-row:last-child{border:0;padding-bottom:0}.incident-mark{width:8px;height:8px;border-radius:50%;background:var(--m3c-error);margin-top:5px;flex-shrink:0}.incident-row>div{flex:1;min-width:0}.incident-row strong{font-size:13px}.incident-row p{margin:4px 0 0;font-size:12px;color:var(--m3c-on-surface-variant);overflow-wrap:anywhere}.incident-row time{font-size:10px;color:var(--m3c-on-surface-variant);text-align:right}.empty-incidents,.empty{padding:24px 4px;text-align:center;color:var(--m3c-on-surface-variant);font-size:12px;line-height:1.7}.empty-check{display:grid;place-items:center;width:34px;height:34px;margin:0 auto 12px;border-radius:50%;background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container);font-size:18px}.empty-incidents strong{display:block;color:var(--m3c-on-surface);font-size:13px}.empty-incidents p{max-width:460px;margin:7px auto 0}.domain-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px}.domain-copy h3{font-size:15px;margin:0 0 7px}.domain-copy p{font-size:12px;color:var(--m3c-on-surface-variant);line-height:1.7;margin:0 0 5px}.domain-meta{padding-top:6px}.countdown{text-align:right;min-width:100px}.countdown strong{display:block;font-size:32px;font-weight:650;letter-spacing:-.05em;font-variant-numeric:tabular-nums}.countdown span{font-size:11px;color:var(--m3c-on-surface-variant)}.loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:25px;color:var(--m3c-on-surface-variant);font-size:13px}footer{margin-top:48px;min-height:78px;border-top:1px solid var(--m3c-outline-variant);display:flex;align-items:center;gap:12px;color:var(--m3c-on-surface-variant);font-size:11px}.footer-brand{font-size:14px;font-weight:700;letter-spacing:-.04em;color:var(--m3c-on-surface)}footer a{margin-left:auto;color:var(--m3c-primary)}::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}::view-transition-new(root){clip-path:circle(0 at var(--theme-x,95%) var(--theme-y,30px));animation:theme-reveal .42s ease-out forwards}::view-transition-old(root){z-index:1}@keyframes theme-reveal{to{clip-path:circle(150vmax at var(--theme-x,95%) var(--theme-y,30px))}}@media(max-width:700px){.shell{padding:0 20px}.hero{padding:44px 0 34px}.section{padding-top:32px}.service-metrics{gap:8px}.history-row{grid-template-columns:minmax(0,1fr) 105px 105px;gap:9px}.section-heading{align-items:flex-start;flex-wrap:wrap}.period-switch{max-width:100%}.period-switch button{padding:7px 9px}.domain-row{gap:12px}}@media(max-width:440px){.shell{padding:0 14px}.topbar{min-height:66px}.live-indicator{font-size:10px}.top-actions{gap:10px}.hero{padding-top:38px}h1{font-size:36px}.hero-meta{gap:7px}.service-metrics strong{font-size:15px}.service-foot{gap:7px 12px}.history-row{grid-template-columns:minmax(0,1fr) 86px 86px}.history-row strong{font-size:11px}.history-row>div:first-child span,.history-stat>span{font-size:10px}.period-switch button{font-size:10px;padding:7px}.countdown strong{font-size:26px}.countdown{min-width:70px}.uptime-bars{gap:2px;height:25px}footer{flex-wrap:wrap;padding:16px 0}footer a{margin-left:auto}}
+
+  .boot-screen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--m3c-surface);color:var(--m3c-on-surface);text-align:center;padding:24px}
+  .boot-brand{font-size:clamp(32px,6vw,44px);font-weight:700;letter-spacing:-.07em;animation:boot-arrive .65s cubic-bezier(.2,.8,.2,1) both}
+  .boot-screen :global(*){transition:color .3s ease,background-color .3s ease}
+  .boot-screen p{margin:0;font-size:14px;font-weight:600;letter-spacing:-.01em}
+  .boot-caption{font-size:12px;color:var(--m3c-on-surface-variant);animation:soft-pulse 1.8s ease-in-out infinite}
+  .booting{visibility:hidden}
+  @keyframes boot-arrive{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes soft-pulse{0%,100%{opacity:.5}50%{opacity:1}}
+  .theme-toggle{overflow:hidden;transition:transform .25s cubic-bezier(.2,.8,.2,1),background-color .25s ease,border-color .25s ease}
+  .theme-toggle svg{transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .2s ease}
+  .theme-toggle:hover svg{transform:rotate(-18deg) scale(1.08)}
+  .theme-toggle:active{transform:scale(.9)}
+  .theme-toggle .sun-icon{animation:sun-arrive .42s cubic-bezier(.2,.8,.2,1) both}
+  .theme-toggle .moon-icon{animation:moon-arrive .42s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes sun-arrive{from{opacity:0;transform:rotate(-75deg) scale(.55)}to{opacity:1;transform:rotate(0) scale(1)}}
+  @keyframes moon-arrive{from{opacity:0;transform:rotate(45deg) scale(.55)}to{opacity:1;transform:rotate(0) scale(1)}}
+  button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:color .22s ease,background-color .22s ease,border-color .22s ease,transform .22s cubic-bezier(.2,.8,.2,1),opacity .22s ease,box-shadow .22s ease}
+  button:not(:disabled){cursor:pointer}
+  button:not(:disabled):hover{filter:brightness(1.025)}
+  button:not(:disabled):active{transform:scale(.97)}
+  button:disabled{opacity:.65;cursor:wait}
+  a:hover{color:var(--m3c-primary)}
+  .service-list :global(.m3-card){animation:card-arrive .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--item-index, 0) * 55ms)}
+  .service-card{border-radius:28px}
+  .service-card:hover{transform:translateY(-2px)}
+  .uptime-bar{min-height:100%;transform-origin:center;animation:bar-grow .45s cubic-bezier(.2,.8,.2,1) both}
+  .uptime-bar:hover{transform:scaleY(1.14);filter:saturate(1.15)}
+  .graph-line{stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards}
+  .graph-grid{stroke-linecap:round}
+  .period-switch{transition:background-color .25s ease,border-color .25s ease}
+  .period-switch button{border-radius:999px;transition:background-color .25s ease,color .25s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
+  .period-switch button.active{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--m3c-primary) 18%,transparent)}
+  .period-switch button:not(:disabled):hover{transform:translateY(-1px)}
+  .incident-row:hover{padding-left:6px}
+  .status-dot.up{animation:status-breathe 2.4s ease-in-out infinite}
+  @keyframes card-arrive{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes bar-grow{from{transform:scaleY(.25);opacity:.4}to{transform:scaleY(1);opacity:1}}
+  @keyframes draw-graph{to{stroke-dashoffset:0}}
+  @keyframes status-breathe{0%,100%{box-shadow:0 0 0 0 rgb(37 134 83 / 0%)}50%{box-shadow:0 0 0 4px rgb(37 134 83 / 10%)}}
+  @media(prefers-reduced-motion:reduce){.boot-brand,.boot-caption,.theme-toggle svg,.theme-toggle .sun-icon,.theme-toggle .moon-icon,.service-list :global(.m3-card),.uptime-bar,.graph-line,.status-dot.up{animation:none!important}.booting{visibility:hidden}button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:none!important}}
+
 </style>
