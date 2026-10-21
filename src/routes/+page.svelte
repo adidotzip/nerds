@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { fade, fly } from "svelte/transition";
   import { Button, Card, Chip, LoadingIndicator } from "m3-svelte";
 
 
@@ -88,6 +89,7 @@
     const apply = () => {
       dark = next;
       document.documentElement.dataset.theme = dark ? "dark" : "light";
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
       try { localStorage.setItem("adi-theme", dark ? "dark" : "light"); } catch {}
     };
     if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -100,11 +102,9 @@
   async function changePeriod(period) { selected = period; await refresh(); }
 
   onMount(() => {
-    try {
-      const saved = localStorage.getItem("adi-theme");
-      dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    } catch {}
+    dark = document.documentElement.dataset.theme === "dark";
     document.documentElement.dataset.theme = dark ? "dark" : "light";
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
     refresh();
     const timer = setInterval(refresh, 60000);
     return () => clearInterval(timer);
@@ -141,13 +141,13 @@
   </header>
 
   <main>
-    <section class="hero">
+    <section class="hero" in:fly={{ y: 14, duration: 420 }}>
       <div class="status-line"><span class="status-dot {data?.status || 'unknown'}"></span><span>{statusText[data?.status || "unknown"]}</span></div>
       <h1>{data?.status === "up" ? "Everything is running smoothly." : data?.status === "down" || data?.status === "partial" ? "We're investigating a service disruption." : data?.status === "degraded" ? "Some services are running slowly." : "Service status at a glance."}</h1>
       <div class="hero-meta"><span>{failed ? "Status data could not be loaded." : "Monitoring the services that power adi.rest."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
     </section>
 
-    <section class="section summary-section">
+    <section class="section summary-section" in:fade={{ duration: 360 }}>
       <div class="section-heading"><div><p class="eyebrow">OVERVIEW</p><h2>Service health</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored services</span></div>
       <div class="service-list">
         {#if !data}
@@ -158,7 +158,7 @@
           {#each data.services as service, i (service.id)}
             {@const historyData = histories[service.id]}
             <Card variant="outlined">
-              <article class="service-card" style={`--item-index:${i}`}>
+              <article class="service-card" style={`--item-index:${i}`} in:fly={{ y: 10, duration: 320, delay: i * 45 }}>
                 <div class="service-main">
                   <div class="service-name-line"><span class="status-dot small {service.status || 'unknown'}"></span><h3>{service.name}</h3><span class="status-word {service.status || 'unknown'}">{service.statusLabel || "Unknown"}</span></div>
                   <p class="service-description">{service.description}</p>
@@ -197,7 +197,7 @@
       </div>
     </section>
 
-    <section class="section history-section">
+    <section class="section history-section" in:fade={{ duration: 360, delay: 60 }}>
       <div class="section-heading"><div><p class="eyebrow">HISTORICAL DATA</p><h2>Uptime & response times</h2></div>
         <div class="period-switch" aria-label="History time range">
           {#each periods as period}
@@ -220,7 +220,7 @@
       </Card>
     </section>
 
-    <section class="section incidents-section">
+    <section class="section incidents-section" in:fade={{ duration: 360, delay: 90 }}>
       <div class="section-heading"><div><p class="eyebrow">EVENT LOG</p><h2>Recent incidents</h2></div><span class="subtle">Recorded check failures</span></div>
       <Card variant="outlined">
         {#if incidents.length}
@@ -237,7 +237,7 @@
       </Card>
     </section>
 
-    <section class="section domain-section">
+    <section class="section domain-section" in:fade={{ duration: 360, delay: 120 }}>
       <div class="section-heading"><div><p class="eyebrow">REGISTRATION</p><h2>imreallyadi.space</h2></div><Chip variant="general" disabled>Domain health</Chip></div>
       <Card variant="outlined">
         <div class="domain-row">
