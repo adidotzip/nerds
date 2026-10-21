@@ -19,7 +19,7 @@ async function database() {
 async function collection() {
   const c = (await database()).collection("checks");
   await c.createIndex({ serviceId: 1, timestamp: -1 });
-  await c.createIndex({ timestamp: 1 }, { expireAfterSeconds: 7776000 });
+  await c.createIndex({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
   return c;
 }
 async function check(service) {
@@ -44,7 +44,7 @@ async function check(service) {
   const responseTimeMs = Math.round((performance.now() - started) * 100) / 100;
   const success = error === null;
   const status = !success ? "down" : responseTimeMs >= (service.degradedMs || config.latencyDegradedMs || 1500) ? "degraded" : "up";
-  return { serviceId: service.id, serviceName: service.name, serviceUrl: service.url, timestamp, statusCode, responseTimeMs, success, status, errorCategory, error };
+  return { serviceId: service.id, serviceName: service.name, serviceUrl: service.url, timestamp, createdAt: new Date(timestamp), statusCode, responseTimeMs, success, status, errorCategory, error };
 }
 async function recordChecks() {
   const records = await Promise.all(services.map(check));
