@@ -10,7 +10,10 @@
     "dev": "vite dev",
     "build": "svelte-kit sync && vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:monitor": "wrangler deploy --config wrangler.monitor.jsonc",
+    "types:cloudflare": "wrangler types"
   },
   "dependencies": {
     "@sveltejs/kit": "^2.49.2",
@@ -20,11 +23,12 @@
     "vite": "^7.3.6",
     "vite-plugin-functions-mixins": "^0.4.1",
     "@ktibow/iconset-material-symbols": "^0.0.1764827375",
-    "@sveltejs/adapter-auto": "^6.1.0",
-    "mongodb": "^6.21.0"
+    "mongodb": "^6.21.0",
+    "@sveltejs/adapter-cloudflare": "^7.2.5"
   },
   "devDependencies": {
     "svelte-check": "^4.7.6",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "wrangler": "^4.45.0"
   }
 }
