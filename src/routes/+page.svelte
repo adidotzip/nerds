@@ -63,6 +63,8 @@
     });
   };
 
+  const monitorApi = "https://monitor.adi.rest";
+
   async function fetchJson(url) {
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error("Request failed");
@@ -73,7 +75,7 @@
     try {
       const [status, incidentData, domainData] = await Promise.all([
         fetchJson("/api/ping"),
-        fetchJson("/api/incidents?period=24h").catch(() => ({ incidents: [] })),
+        fetchJson(monitorApi + "/api/incidents?period=24h").catch(() => ({ incidents: [] })),
         fetchJson("/api/domain-health").catch(() => null)
       ]);
       data = status;
@@ -82,11 +84,12 @@
       failed = false;
       const results = await Promise.all((data.services || []).map(async (service) => {
         try {
-          const result = await fetchJson("/api/history/" + encodeURIComponent(service.id) + "?period=" + selected);
-          return [service.id, result];
-        } catch { return [service.id, { history: [], uptime: {} }]; }
+          const result = await fetchJson(monitorApi + "/api/history/" + encodeURIComponent(service.id) + "?period=" + selected);
+          return [service.id, result, true];
+        } catch { return [service.id, { history: [], uptime: {} }, false]; }
       }));
-      histories = Object.fromEntries(results);
+      histories = Object.fromEntries(results.map(([id, result]) => [id, result]));
+      data = { ...status, historyAvailable: results.length > 0 && results.every(([, , available]) => available) };
     } catch {
       failed = true;
       data = { status: "unknown", updatedAt: null, services: unknownServiceList(), configurationFallback: true };
