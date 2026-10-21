@@ -6,8 +6,6 @@ const statusCopy = {
   down: ["Major Outage", "All monitored services are currently unavailable."],
   unknown: ["Status Temporarily Unavailable", "We don’t have fresh monitoring data for every service yet."]
 };
-const labels = { up: "Operational", degraded: "Degraded", down: "Outage", unknown: "Unknown" };
-const range = "24h";
 const template = $("#service-template");
 const formatLatency = (value) => Number.isFinite(value) ? `${Math.round(value)} ms` : "—";
 const formatTime = (value) => value ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(value)) : "Not yet checked";
