@@ -135,6 +135,71 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: "Not found" });
   } catch (error) {
     console.error("Status API error:", error?.message || error);
+
+    // Keep the public service list available even if the history database is
+    // unavailable. Run real HTTP checks as a read-only fallback; never invent
+    // uptime/history, and clearly mark that these checks are not being stored.
+    if (parts[1] === "status" && parts.length === 2) {
+      try {
+        const checks = await Promise.all(services.map(check));
+        const results = checks.map((record, index) => {
+          const service = services[index];
+          return {
+            id: service.id,
+            name: service.name,
+            description: service.description,
+            url: service.url,
+            status: record.status,
+            statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[record.status],
+            latest: {
+              timestamp: record.timestamp,
+              statusCode: record.statusCode,
+              responseTimeMs: record.responseTimeMs,
+              success: record.success,
+              errorCategory: record.errorCategory,
+              error: record.error
+            },
+            lastSuccessfulCheck: record.success ? record.timestamp : null,
+            lastFailedCheck: record.success ? null : record.timestamp
+          };
+        });
+        const down = results.filter(service => service.status === "down").length;
+        const degraded = results.some(service => service.status === "degraded");
+        const status = down === results.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
+        const updatedAt = checks.reduce((latest, record) => !latest || record.timestamp > latest ? record.timestamp : latest, null);
+        headers(res, "no-store");
+        return res.status(200).json({
+          status,
+          message: ({ up: "All Systems Operational", partial: "Partial Service Disruption", down: "Major Outage", degraded: "Degraded Performance" })[status],
+          updatedAt,
+          liveOnly: true,
+          historyAvailable: false,
+          services: results
+        });
+      } catch (fallbackError) {
+        console.error("Live status fallback failed:", fallbackError?.message || fallbackError);
+        headers(res, "no-store");
+        return res.status(200).json({
+          status: "unknown",
+          message: "Status Temporarily Unavailable",
+          updatedAt: null,
+          liveOnly: true,
+          historyAvailable: false,
+          services: services.map(service => ({
+            id: service.id,
+            name: service.name,
+            description: service.description,
+            url: service.url,
+            status: "unknown",
+            statusLabel: "Unknown",
+            latest: null,
+            lastSuccessfulCheck: null,
+            lastFailedCheck: null
+          }))
+        });
+      }
+    }
+
     return res.status(503).json({ error: "Monitoring data is temporarily unavailable", status: "unknown" });
   }
 }
