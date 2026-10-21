@@ -81,7 +81,7 @@
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 * { box-sizing: border-box; }
-.shell, .shell :global(.m3-card), .topbar, .hero, footer { transition: background-color .28s ease, color .28s ease, border-color .28s ease; }
+.shell, .shell .m3-card, .topbar, .hero, footer { transition: background-color .28s ease, color .28s ease, border-color .28s ease; }
 @media (prefers-reduced-motion: reduce) { :root, body, .shell, .shell :global(.m3-card), .topbar, .hero, footer { transition: none !important; } }
 html { min-width: 320px; background: var(--m3c-surface); scroll-behavior: smooth; }
 body { margin: 0; min-height: 100vh; background: var(--m3c-surface); color: var(--m3c-on-surface); transition: background-color .28s ease, color .28s ease; }
