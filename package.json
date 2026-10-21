@@ -11,7 +11,7 @@
     "build": "svelte-kit sync && vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "npm run build && vercel --prod",
     "add:animated-icons": "npx shadcn@latest add @animate-ui/icons-hugeicons-sun-medium @animate-ui/icons-hugeicons-moon-02",
     "add:animated-sun": "npx shadcn@latest add @animate-ui/icons-hugeicons-sun-medium",
     "add:animated-moon": "npx shadcn@latest add @animate-ui/icons-hugeicons-moon-02"
@@ -28,7 +28,6 @@
   },
   "devDependencies": {
     "svelte-check": "^4.7.6",
-    "typescript": "^6.0.3",
-    "wrangler": "^4.45.0"
+    "typescript": "^6.0.3"
   }
 }
