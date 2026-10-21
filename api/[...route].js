@@ -1,9 +1,6 @@
-import { lookup } from "node:dns/promises";
-import { createRequire } from "node:module";
+import config from "../services.json";
 import { MongoClient } from "mongodb";
 
-const require = createRequire(import.meta.url);
-const config = require("../services.json");
 const services = config.services;
 const uri = process.env.mongo_MONGODB_URI || process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DATABASE || "adi_status";
@@ -78,7 +75,9 @@ function stats(records, from) {
 }
 async function domainHealth() {
   const host = "imreallyadi.space", checkedAt = new Date().toISOString(), expirationDate = "2026-12-25T00:00:00.000Z";
-  const dns = await lookup(host).then(r => ({ ok: true, address: r.address })).catch(() => ({ ok: false, address: null }));
+  const dns = await fetch("https://dns.google/resolve?name=" + encodeURIComponent(host) + "&type=A", { signal: AbortSignal.timeout(4000) })
+    .then(async r => { if (!r.ok) throw new Error("DNS query failed"); const data = await r.json(); const answer = data.Answer?.find(item => item.type === 1); return { ok: Boolean(answer), address: answer?.data || null }; })
+    .catch(() => ({ ok: false, address: null }));
   let tls = { valid: false, expiresAt: null };
   try { const r = await fetch("https://" + host + "/", { signal: AbortSignal.timeout(5000), redirect: "follow" }); tls = { valid: true, expiresAt: null }; await r.body?.cancel().catch(() => {}); } catch {}
   return { checkedAt, expirationDate, expirationSource: "configured", daysRemaining: Math.ceil((Date.parse(expirationDate) - Date.now()) / 86400000), dns, tls };
