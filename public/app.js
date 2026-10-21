@@ -47,8 +47,8 @@ async function loadDomain() {
     const data = await response.json();
     if (data.expirationDate) {
       const days = data.daysRemaining;
-      $("#domain-title").textContent = "Registration expiration date found";
-      $("#domain-description").textContent = `Reported expiration: ${new Date(data.expirationDate).toLocaleDateString(undefined, { dateStyle: "long", timeZone: "UTC" })}. This is separate from whether the website responds over HTTP.`;
+      $("#domain-title").textContent = "Configured expiration date";
+      $("#domain-description").textContent = `Configured expiry: ${new Date(data.expirationDate).toLocaleDateString(undefined, { dateStyle: "long", timeZone: "UTC" })}. This date was provided manually and has not been independently verified. Website availability is tracked separately.`;
       $("#domain-days").textContent = days < 0 ? "Past" : String(days);
       $("#domain-days-label").textContent = days < 0 ? "expiration date" : days === 1 ? "day remaining" : "days remaining";
     } else {
