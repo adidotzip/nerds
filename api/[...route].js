@@ -106,13 +106,52 @@ export default async function handler(req, res) {
     }
     if (parts[1] === "domain-health" && parts.length === 2) { headers(res, "public, s-maxage=300, stale-while-revalidate=600"); return res.status(200).json(await domainHealth()); }
     if (parts[1] === "status" && parts.length === 2) {
-      let results = await latestResults();
-      if (results.every(r => !r.latest)) { await recordChecks(); results = await latestResults(); }
-      const unknown = results.some(r => r.status === "unknown"), down = results.filter(r => r.status === "down").length, degraded = results.some(r => r.status === "degraded");
-      const status = unknown ? "unknown" : down === results.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
-      const updatedAt = results.reduce((v, r) => r.latest?.timestamp && (!v || r.latest.timestamp > v) ? r.latest.timestamp : v, null);
-      headers(res, "public, s-maxage=10, stale-while-revalidate=10");
-      return res.status(200).json({ status, message: ({ up: "All Systems Operational", partial: "Partial Service Disruption", down: "Major Outage", degraded: "Degraded Performance", unknown: "Status Temporarily Unavailable" })[status], updatedAt, services: results });
+      // Always base the public status on fresh, real HTTP checks. Persist history
+      // only when storage is configured and reachable; the current status must
+      // still work when history storage is unavailable.
+      const checks = await Promise.all(services.map(check));
+      let historyAvailable = false;
+      try {
+        const c = await collection();
+        if (checks.length) await c.insertMany(checks);
+        historyAvailable = true;
+      } catch (storageError) {
+        console.error("Monitoring history unavailable:", storageError?.message || storageError);
+      }
+      const results = checks.map((record, index) => {
+        const service = services[index];
+        return {
+          id: service.id,
+          name: service.name,
+          description: service.description,
+          url: service.url,
+          status: record.status,
+          statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[record.status],
+          latest: {
+            timestamp: record.timestamp,
+            statusCode: record.statusCode,
+            responseTimeMs: record.responseTimeMs,
+            success: record.success,
+            errorCategory: record.errorCategory,
+            error: record.error
+          },
+          lastSuccessfulCheck: record.success ? record.timestamp : null,
+          lastFailedCheck: record.success ? null : record.timestamp
+        };
+      });
+      const down = results.filter(service => service.status === "down").length;
+      const degraded = results.some(service => service.status === "degraded");
+      const status = down === results.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
+      const updatedAt = checks.reduce((latest, record) => !latest || record.timestamp > latest ? record.timestamp : latest, null);
+      headers(res, "no-store");
+      return res.status(200).json({
+        status,
+        message: ({ up: "All Systems Operational", partial: "Partial Service Disruption", down: "Major Outage", degraded: "Degraded Performance" })[status],
+        updatedAt,
+        liveOnly: !historyAvailable,
+        historyAvailable,
+        services: results
+      });
     }
     if (parts[1] === "status" && parts.length === 3) {
       if (!services.some(s => s.id === parts[2])) return res.status(404).json({ error: "Service not found" });
