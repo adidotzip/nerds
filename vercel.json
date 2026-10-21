@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "sveltekit"
+  "framework": "sveltekit",
+  "crons": [
+    {
+      "path": "/api/cron/check",
+      "schedule": "* * * * *"
+    }
+  ]
 }
