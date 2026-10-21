@@ -1,29 +1,31 @@
 import config from "../services.json";
-import { MongoClient } from "mongodb";
+import { list, put } from "@vercel/blob";
 
 const services = config.services;
-const uri = process.env.mongo_MONGODB_URI || process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DATABASE || "adi_status";
-let clientPromise = globalThis.__adiStatusMongo;
-async function database() {
-  if (!uri) throw new Error("MongoDB connection string is not configured");
-  if (!clientPromise) {
-    clientPromise = new MongoClient(uri, { serverSelectionTimeoutMS: 5000, maxPoolSize: 5 }).connect();
-    globalThis.__adiStatusMongo = clientPromise;
-  }
-  return (await clientPromise).db(dbName);
+const token = () => process.env.BLOB_READ_WRITE_TOKEN;
+const validPeriods = ["24h", "7d", "30d"];
+
+function headers(res, cache = "no-store") {
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Cache-Control", cache);
 }
-async function collection() {
-  const c = (await database()).collection("checks");
-  await c.createIndex({ serviceId: 1, timestamp: -1 });
-  await c.createIndex({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
-  return c;
-}
+function send(res, status, body) { return res.status(status).json(body); }
+function safePeriod(value) { return validPeriods.includes(value) ? value : "24h"; }
+function cutoff(period) { return Date.now() - (period === "7d" ? 7 : period === "30d" ? 30 : 1) * 86400000; }
+
 async function check(service) {
-  const timestamp = new Date().toISOString(), started = performance.now();
+  const timestamp = new Date().toISOString();
+  const started = performance.now();
   let statusCode = null, error = null, errorCategory = null;
   try {
-    const response = await fetch(service.url, { method: "GET", redirect: "follow", signal: AbortSignal.timeout(Math.min(service.timeoutMs || 4000, 10000)), headers: { "user-agent": "adi.rest-status/3.0" } });
+    const response = await fetch(service.url, {
+      method: "GET", redirect: "follow",
+      signal: AbortSignal.timeout(Math.min(service.timeoutMs || 10000, 10000)),
+      headers: { "user-agent": "adi.rest-status/4.0" }
+    });
     statusCode = response.status;
     await response.body?.cancel().catch(() => {});
     const [min, max] = service.expectedStatus || [200, 299];
@@ -31,214 +33,170 @@ async function check(service) {
       errorCategory = statusCode >= 500 ? "server" : "http";
       error = `Unexpected HTTP status ${statusCode}`;
     }
-  } catch (e) {
-    const code = e?.cause?.code || e?.code || "";
-    errorCategory = /timeout|ABORT_ERR/i.test(String(code) + " " + String(e?.message)) ? "timeout"
-      : ["ENOTFOUND", "EAI_AGAIN", "ENODATA"].includes(code) ? "dns"
-      : ["ECONNREFUSED", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH"].includes(code) ? "connection" : "request";
-    error = errorCategory === "timeout" ? "Request timed out" : errorCategory === "dns" ? "DNS lookup failed" : errorCategory === "connection" ? "Connection failed" : "Request failed";
+  } catch (cause) {
+    const detail = `${cause?.cause?.code || cause?.code || ""} ${cause?.message || ""}`;
+    errorCategory = /timeout|abort/i.test(detail) ? "timeout"
+      : /ENOTFOUND|EAI_AGAIN|ENODATA/i.test(detail) ? "dns"
+      : /ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH/i.test(detail) ? "connection" : "request";
+    error = errorCategory === "timeout" ? "Request timed out"
+      : errorCategory === "dns" ? "DNS lookup failed"
+      : errorCategory === "connection" ? "Connection failed" : "Request failed";
   }
   const responseTimeMs = Math.round((performance.now() - started) * 100) / 100;
   const success = error === null;
-  const status = !success ? "down" : responseTimeMs >= (service.degradedMs || config.latencyDegradedMs || 1500) ? "degraded" : "up";
-  return { serviceId: service.id, serviceName: service.name, serviceUrl: service.url, timestamp, createdAt: new Date(timestamp), statusCode, responseTimeMs, success, status, errorCategory, error };
+  const status = !success ? "down"
+    : responseTimeMs >= (service.degradedMs || config.latencyDegradedMs || 1500) ? "degraded" : "up";
+  return { serviceId: service.id, serviceName: service.name, serviceUrl: service.url, timestamp, statusCode, responseTimeMs, success, status, errorCategory, error };
 }
-async function recordChecks() {
-  const records = await Promise.all(services.map(check));
-  if (records.length) await (await collection()).insertMany(records);
-  return records;
+
+async function saveChecks(records) {
+  if (!token()) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+  const date = new Date().toISOString().slice(0, 10);
+  for (const service of services) {
+    const pathname = `history/${service.id}/${date}.jsonl`;
+    const result = await list({ prefix: pathname, limit: 10, token: token() });
+    const blob = result.blobs.find((item) => item.pathname === pathname);
+    let previous = "";
+    if (blob) {
+      const response = await fetch(blob.url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Unable to read existing history for ${service.id}`);
+      previous = await response.text();
+    }
+    const record = records.find((item) => item.serviceId === service.id);
+    if (!record) continue;
+    await put(pathname, previous + JSON.stringify(record) + "\n", {
+      access: "public", addRandomSuffix: false, allowOverwrite: true,
+      contentType: "application/x-ndjson", token: token()
+    });
+  }
 }
-async function latestResults() {
-  const c = await collection();
-  return Promise.all(services.map(async (s) => {
-    const [record, good, bad] = await Promise.all([
-      c.findOne({ serviceId: s.id }, { sort: { timestamp: -1 } }),
-      c.findOne({ serviceId: s.id, success: true }, { sort: { timestamp: -1 }, projection: { timestamp: 1 } }),
-      c.findOne({ serviceId: s.id, success: false }, { sort: { timestamp: -1 }, projection: { timestamp: 1 } })
-    ]);
-    const stale = !record || Date.now() - Date.parse(record.timestamp) > Number(process.env.MONITOR_STALE_AFTER_MS || 180000);
-    const status = stale ? "unknown" : record.status;
-    return { id: s.id, name: s.name, description: s.description, url: s.url, status,
-      statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage", unknown: "Unknown" })[status],
-      latest: stale ? null : { timestamp: record.timestamp, statusCode: record.statusCode, responseTimeMs: record.responseTimeMs, success: record.success, errorCategory: record.errorCategory, error: record.error },
-      lastSuccessfulCheck: good?.timestamp || null, lastFailedCheck: bad?.timestamp || null };
-  }));
+
+async function historyFor(serviceId, period) {
+  if (!token()) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+  const start = cutoff(period);
+  const result = await list({ prefix: `history/${serviceId}/`, limit: 100, token: token() });
+  const records = [];
+  for (const blob of result.blobs) {
+    const day = blob.pathname.split("/").at(-1)?.replace(/\.jsonl$/, "");
+    if (!day || Date.parse(day + "T23:59:59.999Z") < start) continue;
+    const response = await fetch(blob.url, { cache: "no-store" });
+    if (!response.ok) continue;
+    for (const line of (await response.text()).split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const item = JSON.parse(line);
+        if (Date.parse(item.timestamp) >= start) records.push(item);
+      } catch { /* Ignore corrupt lines without inventing replacement data. */ }
+    }
+  }
+  return records.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
 }
-function start(period) { return Date.now() - (period === "7d" ? 604800000 : period === "30d" ? 2592000000 : 86400000); }
-function stats(records, from) {
-  const rows = records.filter(r => Date.parse(r.timestamp) >= from);
-  if (!rows.length) return { percentage: null, averageResponseTimeMs: null, successfulChecks: 0, failedChecks: 0, totalChecks: 0 };
-  const ok = rows.filter(r => r.success);
-  return { percentage: Math.round(ok.length / rows.length * 10000) / 100,
-    averageResponseTimeMs: ok.length ? Math.round(ok.reduce((sum, r) => sum + r.responseTimeMs, 0) / ok.length * 100) / 100 : null,
-    successfulChecks: ok.length, failedChecks: rows.length - ok.length, totalChecks: rows.length };
+
+function stats(records) {
+  if (!records.length) return { percentage: null, averageResponseTimeMs: null, successfulChecks: 0, failedChecks: 0, totalChecks: 0 };
+  const successful = records.filter((item) => item.success);
+  return {
+    percentage: Math.round(successful.length / records.length * 10000) / 100,
+    averageResponseTimeMs: successful.length ? Math.round(successful.reduce((sum, item) => sum + item.responseTimeMs, 0) / successful.length * 100) / 100 : null,
+    successfulChecks: successful.length, failedChecks: records.length - successful.length, totalChecks: records.length
+  };
+}
+function view(service, record) {
+  return {
+    id: service.id, name: service.name, description: service.description, url: service.url,
+    status: record.status,
+    statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[record.status],
+    latest: { timestamp: record.timestamp, statusCode: record.statusCode, responseTimeMs: record.responseTimeMs, success: record.success, errorCategory: record.errorCategory, error: record.error },
+    lastSuccessfulCheck: record.success ? record.timestamp : null,
+    lastFailedCheck: record.success ? null : record.timestamp
+  };
+}
+function summary(views) {
+  const down = views.filter((item) => item.status === "down").length;
+  const degraded = views.some((item) => item.status === "degraded");
+  const status = down === views.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
+  return { status, message: ({ up: "All Systems Operational", partial: "Partial Service Disruption", down: "Major Outage", degraded: "Degraded Performance" })[status] };
 }
 async function domainHealth() {
-  const host = "imreallyadi.space", checkedAt = new Date().toISOString(), expirationDate = "2026-12-25T00:00:00.000Z";
+  const host = "imreallyadi.space";
+  const expirationDate = "2026-12-25T00:00:00.000Z";
   const dns = await fetch("https://dns.google/resolve?name=" + encodeURIComponent(host) + "&type=A", { signal: AbortSignal.timeout(4000) })
-    .then(async r => { if (!r.ok) throw new Error("DNS query failed"); const data = await r.json(); const answer = data.Answer?.find(item => item.type === 1); return { ok: Boolean(answer), address: answer?.data || null }; })
-    .catch(() => ({ ok: false, address: null }));
+    .then(async (response) => {
+      if (!response.ok) throw new Error("DNS query failed");
+      const data = await response.json();
+      const answer = data.Answer?.find((item) => item.type === 1);
+      return { ok: Boolean(answer), address: answer?.data || null };
+    }).catch(() => ({ ok: false, address: null }));
   let tls = { valid: false, expiresAt: null };
-  try { const r = await fetch("https://" + host + "/", { signal: AbortSignal.timeout(5000), redirect: "follow" }); tls = { valid: true, expiresAt: null }; await r.body?.cancel().catch(() => {}); } catch {}
-  return { checkedAt, expirationDate, expirationSource: "configured", daysRemaining: Math.ceil((Date.parse(expirationDate) - Date.now()) / 86400000), dns, tls };
+  try {
+    const response = await fetch("https://" + host + "/", { signal: AbortSignal.timeout(5000), redirect: "follow" });
+    tls = { valid: response.ok, expiresAt: null };
+    await response.body?.cancel().catch(() => {});
+  } catch {}
+  return { checkedAt: new Date().toISOString(), expirationDate, expirationSource: "configured", daysRemaining: Math.ceil((Date.parse(expirationDate) - Date.now()) / 86400000), dns, tls };
 }
-function headers(res, cache = "no-store") {
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Cache-Control", cache);
-}
+
 export default async function handler(req, res) {
   headers(res);
-  if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "Method not allowed" }); }
-  const url = new URL(req.url, "https://status.adi.rest"), parts = url.pathname.split("/").filter(Boolean);
-  if (parts[0] !== "api") return res.status(404).json({ error: "Not found" });
-  try {
-    if (parts[1] === "cron" && parts[2] === "check" && parts.length === 3) {
-      if (!process.env.CRON_SECRET) return res.status(503).json({ error: "CRON_SECRET is not configured" });
-      if (req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return res.status(401).json({ error: "Unauthorized" });
-      const locks = (await database()).collection("monitor_locks"), now = new Date();
-      const active = await locks.findOne({ _id: "check", expiresAt: { $gt: now } });
-      if (active) return res.status(409).json({ skipped: true, reason: "Check already running" });
-      await locks.updateOne({ _id: "check" }, { $set: { expiresAt: new Date(Date.now() + 55000), startedAt: now } }, { upsert: true });
-      try { const rows = await recordChecks(); return res.status(200).json({ recorded: rows.length, checkedAt: new Date().toISOString() }); }
-      finally { await locks.updateOne({ _id: "check" }, { $set: { expiresAt: new Date(0), completedAt: new Date() } }); }
-    }
-    if (parts[1] === "domain-health" && parts.length === 2) { headers(res, "public, s-maxage=300, stale-while-revalidate=600"); return res.status(200).json(await domainHealth()); }
-    if (parts[1] === "status" && parts.length === 2) {
-      // Always base the public status on fresh, real HTTP checks. Persist history
-      // only when storage is configured and reachable; the current status must
-      // still work when history storage is unavailable.
-      const checks = await Promise.all(services.map(check));
-      let historyAvailable = false;
-      try {
-        const c = await collection();
-        if (checks.length) await c.insertMany(checks);
-        historyAvailable = true;
-      } catch (storageError) {
-        console.error("Monitoring history unavailable:", storageError?.message || storageError);
-      }
-      const results = checks.map((record, index) => {
-        const service = services[index];
-        return {
-          id: service.id,
-          name: service.name,
-          description: service.description,
-          url: service.url,
-          status: record.status,
-          statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[record.status],
-          latest: {
-            timestamp: record.timestamp,
-            statusCode: record.statusCode,
-            responseTimeMs: record.responseTimeMs,
-            success: record.success,
-            errorCategory: record.errorCategory,
-            error: record.error
-          },
-          lastSuccessfulCheck: record.success ? record.timestamp : null,
-          lastFailedCheck: record.success ? null : record.timestamp
-        };
-      });
-      const down = results.filter(service => service.status === "down").length;
-      const degraded = results.some(service => service.status === "degraded");
-      const status = down === results.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
-      const updatedAt = checks.reduce((latest, record) => !latest || record.timestamp > latest ? record.timestamp : latest, null);
-      headers(res, "no-store");
-      return res.status(200).json({
-        status,
-        message: ({ up: "All Systems Operational", partial: "Partial Service Disruption", down: "Major Outage", degraded: "Degraded Performance" })[status],
-        updatedAt,
-        liveOnly: !historyAvailable,
-        historyAvailable,
-        services: results
-      });
-    }
-    if (parts[1] === "status" && parts.length === 3) {
-      if (!services.some(s => s.id === parts[2])) return res.status(404).json({ error: "Service not found" });
-      const result = (await latestResults()).find(r => r.id === parts[2]);
-      headers(res, "public, s-maxage=10, stale-while-revalidate=10"); return res.status(200).json(result);
-    }
-    if ((parts[1] === "history" || parts[1] === "uptime") && parts.length === 3) {
-      const service = services.find(s => s.id === parts[2]);
-      if (!service) return res.status(404).json({ error: "Service not found" });
-      const period = ["24h", "7d", "30d"].includes(url.searchParams.get("period")) ? url.searchParams.get("period") : "24h";
-      const c = await collection(), all = await c.find({ serviceId: service.id, timestamp: { $gte: new Date(start("30d")).toISOString() } }, { projection: { _id: 0 } }).sort({ timestamp: 1 }).toArray();
-      const uptime = { "24h": stats(all, start("24h")), "7d": stats(all, start("7d")), "30d": stats(all, start("30d")) };
-      return res.status(200).json(parts[1] === "uptime" ? { serviceId: service.id, uptime } : { serviceId: service.id, period, history: all.filter(r => Date.parse(r.timestamp) >= start(period)), uptime });
-    }
-    if (parts[1] === "incidents" && parts.length === 2) {
-      const period = ["24h", "7d", "30d"].includes(url.searchParams.get("period")) ? url.searchParams.get("period") : "24h";
-      const records = await (await collection()).find({ success: false, timestamp: { $gte: new Date(start(period)).toISOString() } }, { projection: { _id: 0 } }).sort({ timestamp: -1 }).limit(100).toArray();
-      return res.status(200).json({ period, incidents: records.map(r => ({ serviceId: r.serviceId, serviceName: r.serviceName, timestamp: r.timestamp, statusCode: r.statusCode, errorCategory: r.errorCategory, error: r.error })) });
-    }
-    return res.status(404).json({ error: "Not found" });
-  } catch (error) {
-    console.error("Status API error:", error?.message || error);
+  if (req.method !== "GET") { res.setHeader("Allow", "GET"); return send(res, 405, { error: "Method not allowed" }); }
+  const url = new URL(req.url, "https://status.adi.rest");
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (parts[0] !== "api") return send(res, 404, { error: "Not found" });
 
-    // Keep the public service list available even if the history database is
-    // unavailable. Run real HTTP checks as a read-only fallback; never invent
-    // uptime/history, and clearly mark that these checks are not being stored.
-    if (parts[1] === "status" && parts.length === 2) {
-      try {
-        const checks = await Promise.all(services.map(check));
-        const results = checks.map((record, index) => {
-          const service = services[index];
-          return {
-            id: service.id,
-            name: service.name,
-            description: service.description,
-            url: service.url,
-            status: record.status,
-            statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[record.status],
-            latest: {
-              timestamp: record.timestamp,
-              statusCode: record.statusCode,
-              responseTimeMs: record.responseTimeMs,
-              success: record.success,
-              errorCategory: record.errorCategory,
-              error: record.error
-            },
-            lastSuccessfulCheck: record.success ? record.timestamp : null,
-            lastFailedCheck: record.success ? null : record.timestamp
-          };
-        });
-        const down = results.filter(service => service.status === "down").length;
-        const degraded = results.some(service => service.status === "degraded");
-        const status = down === results.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
-        const updatedAt = checks.reduce((latest, record) => !latest || record.timestamp > latest ? record.timestamp : latest, null);
-        headers(res, "no-store");
-        return res.status(200).json({
-          status,
-          message: ({ up: "All Systems Operational", partial: "Partial Service Disruption", down: "Major Outage", degraded: "Degraded Performance" })[status],
-          updatedAt,
-          liveOnly: true,
-          historyAvailable: false,
-          services: results
-        });
-      } catch (fallbackError) {
-        console.error("Live status fallback failed:", fallbackError?.message || fallbackError);
-        headers(res, "no-store");
-        return res.status(200).json({
-          status: "unknown",
-          message: "Status Temporarily Unavailable",
-          updatedAt: null,
-          liveOnly: true,
-          historyAvailable: false,
-          services: services.map(service => ({
-            id: service.id,
-            name: service.name,
-            description: service.description,
-            url: service.url,
-            status: "unknown",
-            statusLabel: "Unknown",
-            latest: null,
-            lastSuccessfulCheck: null,
-            lastFailedCheck: null
-          }))
-        });
-      }
+  if (parts[1] === "cron" && parts[2] === "check" && parts.length === 3) {
+    if (!process.env.CRON_SECRET) return send(res, 503, { error: "CRON_SECRET is not configured" });
+    if (req.headers.authorization !== "Bearer " + process.env.CRON_SECRET) return send(res, 401, { error: "Unauthorized" });
+    try {
+      const records = await Promise.all(services.map(check));
+      await saveChecks(records);
+      return send(res, 200, { recorded: records.length, checkedAt: new Date().toISOString() });
+    } catch (error) {
+      console.error("Scheduled monitoring failed:", error?.message || error);
+      return send(res, 503, { error: "Checks ran, but history could not be saved. Check BLOB_READ_WRITE_TOKEN." });
     }
-
-    return res.status(503).json({ error: "Monitoring data is temporarily unavailable", status: "unknown" });
   }
+
+  if (parts[1] === "ping" || (parts[1] === "status" && parts.length === 2)) {
+    const records = await Promise.all(services.map(check));
+    const views = records.map((record, index) => view(services[index], record));
+    const result = summary(views);
+    return send(res, 200, { ...result, updatedAt: records.map((item) => item.timestamp).sort().at(-1), liveOnly: true, historyAvailable: Boolean(token()), services: views });
+  }
+
+  if (parts[1] === "status" && parts.length === 3) {
+    const service = services.find((item) => item.id === parts[2]);
+    if (!service) return send(res, 404, { error: "Service not found" });
+    try {
+      const records = await historyFor(service.id, "24h");
+      const latest = records.at(-1);
+      if (!latest || Date.now() - Date.parse(latest.timestamp) > 180000) return send(res, 200, { id: service.id, name: service.name, description: service.description, url: service.url, status: "unknown", statusLabel: "Unknown", latest: null });
+      return send(res, 200, view(service, latest));
+    } catch { return send(res, 503, { error: "Monitoring history is unavailable" }); }
+  }
+
+  if ((parts[1] === "history" || parts[1] === "uptime") && parts.length === 3) {
+    const service = services.find((item) => item.id === parts[2]);
+    if (!service) return send(res, 404, { error: "Service not found" });
+    const period = safePeriod(url.searchParams.get("period"));
+    try {
+      const [h24, h7, h30] = await Promise.all([historyFor(service.id, "24h"), historyFor(service.id, "7d"), historyFor(service.id, "30d")]);
+      const uptime = { "24h": stats(h24), "7d": stats(h7), "30d": stats(h30) };
+      return send(res, 200, parts[1] === "uptime" ? { serviceId: service.id, uptime } : { serviceId: service.id, period, history: period === "7d" ? h7 : period === "30d" ? h30 : h24, uptime });
+    } catch (error) {
+      console.error("History unavailable:", error?.message || error);
+      return send(res, 503, { error: "Monitoring history is unavailable. Configure Vercel Blob storage." });
+    }
+  }
+
+  if (parts[1] === "incidents" && parts.length === 2) {
+    const period = safePeriod(url.searchParams.get("period"));
+    try {
+      const groups = await Promise.all(services.map((service) => historyFor(service.id, period)));
+      const incidents = groups.flat().filter((item) => !item.success).sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)).slice(0, 100);
+      return send(res, 200, { period, incidents });
+    } catch { return send(res, 503, { error: "Incident history is unavailable. Configure Vercel Blob storage." }); }
+  }
+
+  if (parts[1] === "domain-health" && parts.length === 2) return send(res, 200, await domainHealth());
+  return send(res, 404, { error: "Not found" });
 }
