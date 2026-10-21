@@ -1,5 +1,5 @@
 import config from "../services.json";
-import { list, put } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
 
 const services = config.services;
 const token = () => process.env.BLOB_READ_WRITE_TOKEN;
@@ -68,6 +68,12 @@ async function saveChecks(records) {
       access: "public", addRandomSuffix: false, allowOverwrite: true,
       contentType: "application/x-ndjson", token: token()
     });
+  }
+  const all = await list({ prefix: "history/", limit: 1000, token: token() });
+  const expiredBefore = Date.now() - 31 * 86400000;
+  for (const blob of all.blobs) {
+    const day = blob.pathname.split("/").at(-1)?.replace(/\\.jsonl$/, "");
+    if (day && Date.parse(day + "T23:59:59.999Z") < expiredBefore) await del(blob.url, { token: token() });
   }
 }
 
