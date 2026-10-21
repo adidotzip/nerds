@@ -77,7 +77,6 @@ async function domainHealth() {
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -91,9 +90,11 @@ export default async function handler(req, res) {
   if (parts[0] !== "api") return res.status(404).json({ error: "Not found" });
 
   if (parts[1] === "domain-health" && parts.length === 2) {
+    res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
     return res.status(200).json(await domainHealth());
   }
   if (parts[1] === "status" && parts.length === 2) {
+    res.setHeader("Cache-Control", "public, s-maxage=15, stale-while-revalidate=15");
     const results = await Promise.all(services.map(checkService));
     const down = results.filter(item => item.status === "down").length;
     const degraded = results.some(item => item.status === "degraded");
@@ -106,6 +107,7 @@ export default async function handler(req, res) {
     });
   }
   if (parts[1] === "status" && parts.length === 3) {
+    res.setHeader("Cache-Control", "public, s-maxage=15, stale-while-revalidate=15");
     const service = services.find(item => item.id === parts[2]);
     if (!service) return res.status(404).json({ error: "Service not found" });
     return res.status(200).json(await checkService(service));
