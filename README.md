@@ -29,7 +29,7 @@ You can also import the GitHub repository `adidotzip/nerds` in the Vercel dashbo
 
 ## Important storage limitation
 
-The current monitoring API still imports MongoDB for records and locking. Configure `MONGODB_URI` and `CRON_SECRET` in Vercel project environment variables if using the existing monitoring API. This repository does **not** yet satisfy a strict no-database requirement. Do not assume local files persist across Vercel deployments; migrate monitoring storage to an explicitly configured persistent flat-file-compatible environment before removing MongoDB.
+Live checks run in the Vercel server-side `/api/ping` endpoint. Historical monitoring is handled by a separate Cloudflare Worker using R2 object storage and newline-delimited JSON files, not a database. Create an R2 bucket named `adi-rest-status-history`, then deploy the monitor with `npx wrangler deploy --config wrangler.monitor.jsonc`. Ensure `monitor.adi.rest` is available as a Cloudflare custom domain. The Worker checks configured targets every minute and serves `/api/history/:serviceId`, `/api/incidents`, and `/api/status`. History begins accumulating only after the Worker is deployed; no historical uptime is fabricated.
 
 ## Monitored services
 
