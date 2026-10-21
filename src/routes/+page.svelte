@@ -192,8 +192,6 @@
       </div>
     </section>
 
-      </div>
-    {/if}
 
     <section class="section history-section">
       <div class="section-heading"><div><p class="eyebrow">HISTORICAL DATA</p><h2>Uptime & response times</h2></div>
@@ -224,8 +222,6 @@
       </Card>
     </section>
 
-      </div>
-    {/if}
 
     <section class="section incidents-section">
       <div class="section-heading"><div><p class="eyebrow">EVENT LOG</p><h2>Recent incidents</h2></div><span class="subtle">Recorded check failures</span></div>
@@ -246,8 +242,6 @@
       </Card>
     </section>
 
-      </div>
-    {/if}
 
     <section class="section domain-section">
       <div class="section-heading"><div><p class="eyebrow">REGISTRATION</p><h2>imreallyadi.space</h2></div><Chip variant="general" disabled>Domain health</Chip></div>
