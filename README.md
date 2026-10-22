@@ -1,44 +1,28 @@
 # adi.rest Status
 
-A minimalist SvelteKit status page for adi.rest services, deployed to Vercel. No notifications or alerts are implemented. Status, uptime, history, and incidents must be based on real recorded checks only.
+A minimalist SvelteKit status page for adi.rest services, deployed to Vercel. Monitoring is read-only: no database, notifications, email/Discord/Telegram integrations, or alerting.
 
 ## Deploy to Vercel
 
-1. Install dependencies and verify the app:
+```sh
+npm install
+npm run check
+npm run build
+npx vercel --prod
+```
 
-   ```sh
-   npm install
-   npm run check
-   npm run build
-   ```
+You can also import `adidotzip/nerds` in Vercel and let it detect SvelteKit.
 
-2. Deploy using the Vercel CLI:
+## Monitoring behavior
 
-   ```sh
-   npx vercel login
-   npx vercel
-   ```
+Monitoring targets and checks are configured in `services.json`. The backend requests the exact configured URLs, measures request time, validates expected HTTP status codes, supports per-service latency limits and redirect behavior, and separately classifies HTTP/server, DNS, TLS, timeout, connection, and API-payload errors. Request timeouts are capped by the checker.
 
-3. For production:
+The Lyrics API check validates JSON content type, requires a JSON object, and requires at least one recognized top-level field. The accepted field list is deliberately configurable. Confirm it against the API's actual response contract and tighten it to the exact expected schema once known; a generic field allow-list is not a substitute for a documented health response.
 
-   ```sh
-   npx vercel --prod
-   ```
+Stale live responses are marked unknown. Thresholds for consecutive failures/recovery are present in configuration for future stateful monitoring, but **are not enforced by live-only checks** because the repository currently has no permitted durable monitoring-history store. The API reports checks performed during the current request and explicitly says history is unavailable rather than inventing uptime or incident records.
 
-You can also import the GitHub repository `adidotzip/nerds` in the Vercel dashboard and let Vercel detect SvelteKit.
+## Persistence limitation
 
-## Vercel monitoring setup
+Vercel function memory is ephemeral, and this project intentionally does not use a database. To provide genuine historical uptime, consecutive-failure hysteresis, last-success/last-failure continuity, and incident history, attach a persistent flat-file JSONL store on a compatible scheduled runtime or implement a suitable file-backed worker. Do not treat Vercel's temporary local filesystem as durable.
 
-The site, live checks, scheduled monitor, and history API run on Vercel. MongoDB stores real HTTP check records; Cloudflare Workers and R2 are not required.
-
-1. Set `MONGODB_URI` in the Vercel project environment variables to your MongoDB connection string.
-2. Optionally set `MONGODB_DB` (defaults to `adi_rest_status`).
-3. Set `CRON_SECRET` in Vercel to a long random secret.
-4. Confirm the deployment includes `vercel.json`, which schedules `/api/cron/check` every minute.
-5. Redeploy after setting environment variables.
-
-The cron endpoint requires `Authorization: Bearer <CRON_SECRET>`. Each run checks the exact URLs in `services.json` and stores real results in MongoDB. Records older than 31 days are pruned. Live status requests also perform fresh backend checks. Historical uptime starts accumulating once scheduled checks run successfully; no missing history is fabricated.
-
-## Monitored services
-
-Configured targets are in `services.json`. Monitoring history, uptime, and incidents must use real recorded checks only. Missing history intervals are unknown, never healthy. No notification or alerting integrations are included.
+No external notifications, alerts, or domain-expiration notifications are implemented.
