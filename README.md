@@ -1,5 +1,5 @@
 # adi.rest Status
-
+[![Netlify Status](https://api.netlify.com/api/v1/badges/652c5595-4ed9-44e2-bb23-afb1ffda529e/deploy-status)](https://app.netlify.com/projects/magical-kashata-b89e3a/deploys)
 A minimalist SvelteKit status page for adi.rest, deployed to Netlify. No database, notifications, or alerting integrations are used.
 
 ## Monitoring rules
