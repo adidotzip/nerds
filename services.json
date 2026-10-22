@@ -28,7 +28,7 @@
       "expectedContentType": "application/json",
       "expectedJson": {
         "type": "object",
-        "requiredAny": ["message", "lyrics", "results", "data", "status", "error"]
+        "requiredAny": ["ok", "name", "version", "providers"]
       }
     },
     {
