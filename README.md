@@ -6,13 +6,13 @@ A minimalist SvelteKit status page for adi.rest, deployed to Vercel. No database
 
 The configured URLs in `services.json` are checked server-side. Checks measure elapsed response time, validate configured HTTP status ranges, apply per-service latency thresholds and redirect policy, and categorize DNS, TLS, timeout, connection, HTTP/server and API-payload failures separately.
 
-The lyrics API check targets exactly `https://lyrics.adi.rest/api/`, requires JSON content type and a JSON object with at least one recognized API field. A dedicated health endpoint is preferable for monitoring; the lyrics service documents `GET https://lyrics.adi.rest/api/health` as returning `ok: true`, API name/version and provider information. That stable endpoint is a better health check than the root API router, which may have changing behavior. The actual `/api/` route remains the configured URL currently requested by the project requirement.
+The Lyrics API monitor targets `https://lyrics.adi.rest/api/health` rather than treating the root API router as proof of health. The documented health endpoint returns `ok: true`, `name: Adi Lyrics`, a version, and provider information. The checker validates its JSON content type, object response, required fields and expected `ok`/name values. Other service checks target their exact configured URLs.
 
-## Important runtime limitation
+## Current runtime limitations
 
-This repo currently runs live checks on Vercel, whose function filesystem and in-memory state are not durable across instances. The configuration lists consecutive-failure/recovery thresholds, but live-only mode does **not** enforce them without persisted prior results. Historical uptime and incident APIs therefore explicitly report history unavailable instead of fabricating values.
+Checks are live request results, not persisted history. Vercel's serverless memory and function filesystem are not durable across invocations. The consecutive-failure/recovery thresholds remain configured, but **live-only mode cannot enforce them without persisted prior records**. Historical uptime and incident APIs therefore explicitly report history unavailable instead of inventing values.
 
-To support consecutive-failure hysteresis, genuine 24h/7d/30d uptime, and incidents while respecting the no-database requirement, use a scheduled runtime with persistent flat-file JSONL storage. Do not use ephemeral Vercel function memory or filesystem as durable history.
+To provide real 24h/7d/30d uptime, consecutive-failure hysteresis, last-success/last-failure continuity and incidents while respecting the no-database requirement, use a scheduled runtime with persistent flat-file JSONL storage. Do not treat Vercel's temporary local filesystem as durable.
 
 ## Deploy
 
