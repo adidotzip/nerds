@@ -1,8 +1,50 @@
 {
   "latencyDegradedMs": 1500,
+  "staleAfterMs": 180000,
+  "consecutiveFailuresToDown": 3,
+  "consecutiveSuccessesToRecover": 2,
   "services": [
-    {"id":"adi-rest","name":"adi.rest","description":"Main website","url":"https://adi.rest/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500},
-    {"id":"lyrics-api","name":"Lyrics API","description":"lyrics.adi.rest/api/","url":"https://lyrics.adi.rest/api/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500},
-    {"id":"imreallyadi-space","name":"imreallyadi.space","description":"Secondary website","url":"https://imreallyadi.space/","expectedStatus":[200,299],"timeoutMs":10000,"degradedMs":1500}
+    {
+      "id": "adi-rest",
+      "name": "adi.rest",
+      "description": "Main website",
+      "url": "https://adi.rest/",
+      "expectedStatus": [200, 299],
+      "timeoutMs": 10000,
+      "connectTimeoutMs": 4000,
+      "degradedMs": 1500,
+      "redirect": "follow"
+    },
+    {
+      "id": "lyrics-api",
+      "name": "Lyrics API",
+      "description": "lyrics.adi.rest/api/",
+      "url": "https://lyrics.adi.rest/api/",
+      "expectedStatus": [200, 299],
+      "timeoutMs": 10000,
+      "connectTimeoutMs": 4000,
+      "degradedMs": 1500,
+      "redirect": "follow",
+      "expectedContentType": "application/json",
+      "expectedJson": {
+        "type": "object",
+        "requiredAny": ["message", "lyrics", "results", "data", "status", "error"]
+      },
+      "expectedJsonStatusField": {
+        "path": "status",
+        "acceptedValues": ["ok", "success", "healthy"]
+      }
+    },
+    {
+      "id": "imreallyadi-space",
+      "name": "imreallyadi.space",
+      "description": "Secondary website",
+      "url": "https://imreallyadi.space/",
+      "expectedStatus": [200, 299],
+      "timeoutMs": 10000,
+      "connectTimeoutMs": 4000,
+      "degradedMs": 1500,
+      "redirect": "follow"
+    }
   ]
 }
