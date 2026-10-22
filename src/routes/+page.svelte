@@ -189,7 +189,7 @@
                             <stop offset="100%" stop-color="var(--m3c-primary)" stop-opacity=".015" />
                           </linearGradient>
                         </defs>
-                        <path class="chart-grid" d="" />
+                        <path class="chart-grid" d="M0 20H560 M0 52H560 M0 84H560 M0 116H560" />
                         <path class="chart-area-fill" d={areaPathFor(historyData.history)} fill={"url(#latency-fill-" + service.id + ")"} />
                         <path class="chart-area-line" d={pathFor(historyData.history, 560, 120)} />
                       </svg>
@@ -289,9 +289,9 @@
   @keyframes soft-pulse{0%,100%{opacity:.5}50%{opacity:1}}
   .theme-toggle{overflow:hidden;flex-shrink:0;transition:transform .2s ease,background-color .24s ease,border-color .24s ease,color .24s ease}
   .theme-toggle :global(svg){transition:opacity .24s ease}
-  .area-chart{height:132px;width:100%;overflow:hidden;border-radius:0;border:0;outline:0;box-shadow:none;background:transparent}
-  .area-chart svg{display:block;width:100%;height:100%;overflow:visible;border:0;outline:0;box-shadow:none;background:transparent}
-  .chart-grid{display:none;fill:none;stroke:none;stroke-width:0;stroke-dasharray:none}
+  .area-chart{box-sizing:border-box;height:132px;width:100%;overflow:hidden;border-radius:12px;border:1px solid color-mix(in srgb,var(--m3c-outline-variant) 75%,transparent);outline:0;box-shadow:none;background:transparent;padding:0}
+  .area-chart svg{display:block;width:100%;height:100%;overflow:hidden;border:0;outline:0;box-shadow:none;background:transparent}
+  .chart-grid{display:block;fill:none;stroke:color-mix(in srgb,var(--m3c-outline-variant) 38%,transparent);stroke-width:1;stroke-dasharray:3 6;vector-effect:non-scaling-stroke}
   .chart-area-fill{stroke:none}
   .chart-area-line{fill:none;stroke:var(--m3c-primary);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards;filter:none}
   .chart-axis-labels{display:flex;justify-content:space-between;margin-top:6px;color:var(--m3c-on-surface-variant);font-size:10px}
@@ -309,7 +309,7 @@
   .uptime-bar.unknown{background:color-mix(in srgb,var(--m3c-outline-variant) 58%,transparent)}
   .uptime-bar:hover{transform:scaleY(1.14);filter:saturate(1.15)}
   .graph-line{stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 2px 2px color-mix(in srgb,var(--m3c-primary) 15%,transparent))}
-  .graph-grid{display:none;stroke:none}.latency-graph svg{border:0;outline:0;box-shadow:none;border-radius:0;overflow:visible;clip-path:none}
+  .graph-grid{display:none;stroke:none}.latency-graph svg{border:0;outline:0;box-shadow:none;border-radius:0;overflow:hidden;clip-path:none}
   .period-switch{transition:background-color .25s ease,border-color .25s ease}
   .period-switch button{border-radius:999px;transition:background-color .25s ease,color .25s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
   .period-switch button.active{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--m3c-primary) 18%,transparent)}
