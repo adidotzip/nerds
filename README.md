@@ -1,6 +1,6 @@
 # adi.rest Status
 
-A minimalist SvelteKit status page for adi.rest, deployed to Vercel. No database, notifications, or alerting integrations are used.
+A minimalist SvelteKit status page for adi.rest, deployed to Netlify. No database, notifications, or alerting integrations are used.
 
 ## Monitoring rules
 
@@ -14,13 +14,8 @@ Checks are live request results, not persisted history. Vercel's serverless memo
 
 To provide real 24h/7d/30d uptime, consecutive-failure hysteresis, last-success/last-failure continuity and incidents while respecting the no-database requirement, use a scheduled runtime with persistent flat-file JSONL storage. Do not treat Vercel's temporary local filesystem as durable.
 
-## Deploy
+## Deploy to Netlify
 
-```sh
-npm install
-npm run check
-npm run build
-npx vercel --prod
-```
+Netlify uses the SvelteKit Netlify adapter. The repository includes `netlify.toml`; set the Netlify build command to `npm run build` and publish directory to `build/client` (or let Netlify read the config file). Install dependencies with `npm install`, run `npm run check` and `npm run build`, then deploy through the connected Git repository. No Vercel CLI or Vercel cron configuration is required for the build.
 
 No notifications, alerts, email, Discord or Telegram integrations are included.
