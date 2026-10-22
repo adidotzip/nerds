@@ -1,7 +1,11 @@
 import config from "../services.json";
 import { readChecks, readRecentChecks, saveChecks } from "../src/lib/server/monitoring-db.js";
 
-const services = config.services;
+const MONITORING_ENDS_AT = Date.parse("2026-12-26T00:00:00.000Z");
+// Stop checking imreallyadi.space after its 65-day remaining monitoring window.
+const services = config.services.filter((service) =>
+  service.id !== "imreallyadi-space" || Date.now() < MONITORING_ENDS_AT
+);
 const validPeriods = ["24h", "7d", "30d"];
 const STALE_AFTER_MS = Math.max(30000, config.staleAfterMs || 180000);
 
