@@ -2,47 +2,32 @@ import config from "../../../../services.json";
 
 export const prerender = false;
 
-const FAILURE_THRESHOLD = Math.max(1, config.consecutiveFailuresToDown || 3);
-const RECOVERY_THRESHOLD = Math.max(1, config.consecutiveSuccessesToRecover || 2);
 const STALE_AFTER_MS = Math.max(30000, config.staleAfterMs || 180000);
 
-// This deployment's edge/serverless memory is intentionally not treated as
-// durable history. Hysteresis is applied only when a trustworthy prior state
-// is supplied by the monitoring-history backend.
 function classifyNetworkError(cause) {
-  const code = cause?.cause?.code || cause?.code || "";
-  const detail = `${code} ${cause?.message || ""}`;
+  const detail = `${cause?.cause?.code || cause?.code || ""} ${cause?.message || ""}`;
   if (/timeout|abort|timed out/i.test(detail)) return ["timeout", "Request timed out"];
   if (/ENOTFOUND|EAI_AGAIN|ENODATA|DNS/i.test(detail)) return ["dns", "DNS lookup failed"];
   if (/CERT|TLS|SSL|SELF_SIGNED|UNABLE_TO_VERIFY|ERR_TLS/i.test(detail)) return ["tls", "TLS certificate or handshake failed"];
   if (/ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH/i.test(detail)) return ["connection", "Connection failed"];
   return ["request", "Request failed"];
 }
-
 function getJsonPath(value, path) {
   return path.split(".").reduce((current, key) => current && typeof current === "object" ? current[key] : undefined, value);
 }
-
 function validatePayload(service, response, payload) {
   const contentType = response.headers.get("content-type") || "";
   if (service.expectedContentType && !contentType.toLowerCase().includes(service.expectedContentType.toLowerCase())) {
     return { category: "content_type", message: `Expected content type ${service.expectedContentType}` };
   }
-
   const criteria = service.expectedJson;
-  if (criteria) {
-    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
-      return { category: "payload", message: "Expected a JSON object response" };
-    }
-    if (criteria.type === "object" && (typeof payload !== "object" || Array.isArray(payload) || payload === null)) {
-      return { category: "payload", message: "API response did not match the expected object schema" };
-    }
-    if (Array.isArray(criteria.requiredAny) && criteria.requiredAny.length > 0 &&
-      !criteria.requiredAny.some((key) => Object.hasOwn(payload, key))) {
-      return { category: "payload", message: "API response is missing all recognized top-level fields" };
-    }
+  if (criteria && (!payload || typeof payload !== "object" || Array.isArray(payload))) {
+    return { category: "payload", message: "Expected a JSON object response" };
   }
-
+  if (Array.isArray(criteria?.requiredAny) && criteria.requiredAny.length &&
+      !criteria.requiredAny.some((key) => Object.hasOwn(payload, key))) {
+    return { category: "payload", message: "API response is missing all recognized top-level fields" };
+  }
   const statusCriteria = service.expectedJsonStatusField;
   if (statusCriteria) {
     const value = getJsonPath(payload, statusCriteria.path);
@@ -79,21 +64,14 @@ async function check(service) {
       error = `Unexpected HTTP status ${statusCode}`;
       await response.body?.cancel().catch(() => {});
     } else if (service.expectedContentType || service.expectedJson) {
-      // Read and validate payload only for endpoints with explicit content criteria.
       let payload = null;
       try {
         const bodyText = await response.text();
-        if (bodyText.length > (service.maxBodyBytes || 1024 * 1024)) {
-          throw new Error("Response body exceeded validation limit");
-        }
-        if (service.expectedContentType === "application/json" || service.expectedJson) {
-          payload = JSON.parse(bodyText);
-        }
+        if (new TextEncoder().encode(bodyText).byteLength > (service.maxBodyBytes || 1024 * 1024)) throw new Error("body_limit");
+        payload = JSON.parse(bodyText);
       } catch (cause) {
         errorCategory = "payload";
-        error = cause?.message === "Response body exceeded validation limit"
-          ? "API response body exceeded validation limit"
-          : "API returned an invalid or unreadable JSON response";
+        error = cause?.message === "body_limit" ? "API response body exceeded validation limit" : "API returned an invalid or unreadable JSON response";
       }
       if (!error) {
         const validationError = validatePayload(service, response, payload);
@@ -111,17 +89,12 @@ async function check(service) {
 
   const responseTimeMs = Math.round((performance.now() - started) * 100) / 100;
   const success = error === null;
-  const degradedMs = service.degradedMs || config.latencyDegradedMs || 1500;
-  const status = !success ? "down" : responseTimeMs >= degradedMs ? "degraded" : "up";
+  const status = !success ? "down"
+    : responseTimeMs >= (service.degradedMs || config.latencyDegradedMs || 1500) ? "degraded" : "up";
 
   return {
-    id: service.id,
-    name: service.name,
-    description: service.description,
-    url: service.url,
-    finalUrl,
-    status,
-    statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[status],
+    id: service.id, name: service.name, description: service.description, url: service.url, finalUrl,
+    status, statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[status],
     latest: { timestamp, statusCode, responseTimeMs, success, errorCategory, error },
     lastSuccessfulCheck: success ? timestamp : null,
     lastFailedCheck: success ? null : timestamp,
@@ -136,30 +109,25 @@ export async function GET() {
   const down = checks.filter((service) => service.status === "down").length;
   const degraded = checks.some((service) => service.status === "degraded");
   const status = stale ? "unknown" : down === checks.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
-  const message = ({
-    up: "All Systems Operational",
-    partial: "Partial Service Disruption",
-    down: "Major Outage",
-    degraded: "Degraded Performance",
-    unknown: "Status Temporarily Unavailable"
-  })[status];
 
   return new Response(JSON.stringify({
     status,
-    message,
+    message: ({
+      up: "All Systems Operational",
+      partial: "Partial Service Disruption",
+      down: "Major Outage",
+      degraded: "Degraded Performance",
+      unknown: "Status Temporarily Unavailable"
+    })[status],
     updatedAt,
     stale,
     liveOnly: true,
     historyAvailable: false,
     monitoringPolicy: {
-      consecutiveFailuresToDown: FAILURE_THRESHOLD,
-      consecutiveSuccessesToRecover: RECOVERY_THRESHOLD,
       statefulHysteresisAvailable: false,
       note: "Consecutive-failure and recovery thresholds require persisted previous check results. Live-only checks do not claim to apply hysteresis."
     },
-    services: checks.map((service) => stale
-      ? { ...service, status: "unknown", statusLabel: "Unknown", stale: true }
-      : service)
+    services: checks.map((service) => stale ? { ...service, status: "unknown", statusLabel: "Unknown", stale: true } : service)
   }), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
