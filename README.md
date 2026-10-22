@@ -1,8 +1,20 @@
 # adi.rest Status
 
-A minimalist SvelteKit status page for adi.rest services, deployed to Vercel. Monitoring is read-only: no database, notifications, email/Discord/Telegram integrations, or alerting.
+A minimalist SvelteKit status page for adi.rest, deployed to Vercel. No database, notifications, or alerting integrations are used.
 
-## Deploy to Vercel
+## Monitoring rules
+
+The configured URLs in `services.json` are checked server-side. Checks measure elapsed response time, validate configured HTTP status ranges, apply per-service latency thresholds and redirect policy, and categorize DNS, TLS, timeout, connection, HTTP/server and API-payload failures separately.
+
+The lyrics API check targets exactly `https://lyrics.adi.rest/api/`, requires JSON content type and a JSON object with at least one recognized API field. A dedicated health endpoint is preferable for monitoring; the lyrics service documents `GET https://lyrics.adi.rest/api/health` as returning `ok: true`, API name/version and provider information. That stable endpoint is a better health check than the root API router, which may have changing behavior. The actual `/api/` route remains the configured URL currently requested by the project requirement.
+
+## Important runtime limitation
+
+This repo currently runs live checks on Vercel, whose function filesystem and in-memory state are not durable across instances. The configuration lists consecutive-failure/recovery thresholds, but live-only mode does **not** enforce them without persisted prior results. Historical uptime and incident APIs therefore explicitly report history unavailable instead of fabricating values.
+
+To support consecutive-failure hysteresis, genuine 24h/7d/30d uptime, and incidents while respecting the no-database requirement, use a scheduled runtime with persistent flat-file JSONL storage. Do not use ephemeral Vercel function memory or filesystem as durable history.
+
+## Deploy
 
 ```sh
 npm install
@@ -11,18 +23,4 @@ npm run build
 npx vercel --prod
 ```
 
-You can also import `adidotzip/nerds` in Vercel and let it detect SvelteKit.
-
-## Monitoring behavior
-
-Monitoring targets and checks are configured in `services.json`. The backend requests the exact configured URLs, measures request time, validates expected HTTP status codes, supports per-service latency limits and redirect behavior, and separately classifies HTTP/server, DNS, TLS, timeout, connection, and API-payload errors. Request timeouts are capped by the checker.
-
-The Lyrics API check validates JSON content type, requires a JSON object, and requires at least one recognized top-level field. The accepted field list is deliberately configurable. Confirm it against the API's actual response contract and tighten it to the exact expected schema once known; a generic field allow-list is not a substitute for a documented health response.
-
-Stale live responses are marked unknown. Thresholds for consecutive failures/recovery are present in configuration for future stateful monitoring, but **are not enforced by live-only checks** because the repository currently has no permitted durable monitoring-history store. The API reports checks performed during the current request and explicitly says history is unavailable rather than inventing uptime or incident records.
-
-## Persistence limitation
-
-Vercel function memory is ephemeral, and this project intentionally does not use a database. To provide genuine historical uptime, consecutive-failure hysteresis, last-success/last-failure continuity, and incident history, attach a persistent flat-file JSONL store on a compatible scheduled runtime or implement a suitable file-backed worker. Do not treat Vercel's temporary local filesystem as durable.
-
-No external notifications, alerts, or domain-expiration notifications are implemented.
+No notifications, alerts, email, Discord or Telegram integrations are included.
