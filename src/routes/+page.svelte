@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { Button, Card, Chip, LoadingIndicator, ConnectedButtons } from "m3-svelte";
+  import { AreaChart } from "layerchart";
 
 
   let data = $state(null);
@@ -31,6 +32,10 @@
   const latency = (value) => Number.isFinite(value) ? Math.round(value) + " ms" : "—";
   const percent = (value) => Number.isFinite(value) ? value.toFixed(2) + "%" : "Collecting data";
   const points = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs) && item.success);
+  const chartPoints = (history) => points(history).map((item) => ({
+    timestamp: new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    responseTimeMs: item.responseTimeMs
+  }));
   const pathFor = (history, width = 560, height = 120) => {
     const values = points(history);
     if (values.length < 2) return "";
@@ -182,17 +187,11 @@
                   <div class="uptime-title"><span>Response time</span><span>{historyData?.history?.length ? "milliseconds" : "No history yet"}</span></div>
                   {#if points(historyData?.history).length > 1}
                     <div class="area-chart" role="img" aria-label={"Area chart of recorded response times for " + service.name}>
-                      <svg viewBox="0 0 560 132" preserveAspectRatio="none" aria-hidden="true">
-                        <defs>
-                          <linearGradient id={"latency-fill-" + service.id} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="var(--m3c-primary)" stop-opacity=".30" />
-                            <stop offset="100%" stop-color="var(--m3c-primary)" stop-opacity=".015" />
-                          </linearGradient>
-                        </defs>
-                        <path class="chart-grid" d="M0 20H560 M0 52H560 M0 84H560 M0 116H560" />
-                        <path class="chart-area-fill" d={areaPathFor(historyData.history)} fill={"url(#latency-fill-" + service.id + ")"} />
-                        <path class="chart-area-line" d={pathFor(historyData.history, 560, 120)} />
-                      </svg>
+                      <AreaChart
+                        data={chartPoints(historyData.history)}
+                        x="timestamp"
+                        y="responseTimeMs"
+                      />
                     </div>
                     <div class="chart-axis-labels"><span>Earlier</span><span>Most recent checks</span></div>
                   {:else}
