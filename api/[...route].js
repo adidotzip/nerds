@@ -179,6 +179,43 @@ export default async function handler(req, res) {
   const parts = url.pathname.split("/").filter(Boolean);
   if (parts[0] !== "api") return send(res, 404, { error: "Not found" });
 
+  // Read the latest persisted checks without triggering new monitoring requests.
+  if (parts[1] === "current-status" && parts.length === 2) {
+    try {
+      const records = await readChecks({ since: new Date(Date.now() - PERIOD_MS["30d"]), limit: 50000 });
+      const latestByService = new Map();
+      for (const record of records) {
+        const current = latestByService.get(record.serviceId);
+        if (!current || Date.parse(record.timestamp) > Date.parse(current.timestamp)) {
+          latestByService.set(record.serviceId, record);
+        }
+      }
+      const views = services.map((service) => {
+        const record = latestByService.get(service.id);
+        if (!record) {
+          return {
+            id: service.id, name: service.name, description: service.description, url: service.url,
+            status: "unknown", statusLabel: "Unknown", latest: null,
+            lastSuccessfulCheck: null, lastFailedCheck: null, stale: true
+          };
+        }
+        const result = view(service, record);
+        if (result.stale) return { ...result, status: "unknown", statusLabel: "Unknown" };
+        return result;
+      });
+      const result = summary(views);
+      return send(res, 200, {
+        ...result,
+        updatedAt: views.map((item) => item.latest?.timestamp).filter(Boolean).sort().at(-1) || null,
+        liveOnly: false,
+        historyAvailable: true,
+        services: views
+      });
+    } catch {
+      return send(res, 503, { status: "unknown", message: "Saved monitoring results are unavailable.", historyAvailable: false, services: [] });
+    }
+  }
+
   if (parts[1] === "ping" || (parts[1] === "status" && parts.length === 2)) {
     const records = await Promise.all(services.map(check));
     const historyAvailable = await persistChecks(records);
