@@ -366,4 +366,15 @@
   .latency-graph{min-width:0;width:100%;overflow:hidden}
   .uptime-title{align-items:center}
   @media(max-width:560px){.area-chart{height:112px}.service-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.service-metrics strong{overflow-wrap:anywhere}}
+
+  /* Keep incident markers, labels and timestamps on a deliberate shared grid. */
+  .incident-row{grid-template-columns:8px minmax(0,1fr) auto;align-items:start;column-gap:12px}
+  .incident-row .incident-mark{grid-column:1;grid-row:1;align-self:start;margin-top:6px}
+  .incident-row>div{grid-column:2;grid-row:1;min-width:0}
+  .incident-row time{grid-column:3;grid-row:1;align-self:start;margin:0;padding-top:1px;line-height:1.5;text-align:right}
+  @media(max-width:560px){
+    .incident-row{grid-template-columns:8px minmax(0,1fr);column-gap:12px;row-gap:5px}
+    .incident-row>div{grid-column:2;grid-row:1}
+    .incident-row time{grid-column:2;grid-row:2;margin:0;padding-top:0;text-align:left;white-space:normal;max-width:none}
+  }
 </style>
