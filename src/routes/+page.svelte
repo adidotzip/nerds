@@ -325,45 +325,109 @@
   @media(prefers-reduced-motion:reduce){.boot-brand,.boot-caption,.service-list :global(.m3-card),.uptime-bar,.graph-line,.chart-area-line,.status-dot.up{animation:none!important}.boot-screen,.shell{transition:none!important}.booting{visibility:hidden}button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:none!important}}
 
 
-  /* LayerChart fills its container; constrain it to the same rounded frame as the rest of the UI. */
-  .area-chart{position:relative;display:block;min-width:0;width:100%;height:132px;box-sizing:border-box;overflow:hidden;border:1px solid color-mix(in srgb,var(--m3c-outline-variant) 75%,transparent);border-radius:12px;background:transparent;padding:0}
-  .area-chart :global(svg){display:block;width:100%!important;height:100%!important;max-width:100%;overflow:hidden;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;background:transparent}
-  .area-chart :global(.chart-container),.area-chart :global(.chart-wrapper){width:100%;height:100%;min-width:0;max-width:100%}
-  .latency-graph{min-width:0;width:100%;overflow:hidden}
-  .latency-graph>*{min-width:0;max-width:100%}
-  .chart-axis-labels{display:flex;justify-content:space-between;gap:12px;margin-top:6px;color:var(--m3c-on-surface-variant);font-size:10px}
-  @media(max-width:560px){
-    .shell{padding-inline:16px}
-    .hero{padding-top:36px}
-    .hero-meta{align-items:flex-start}
-    .service-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-    .metric-label{font-size:10px}
-    .service-metrics strong{font-size:15px;overflow-wrap:anywhere}
-    .uptime-bars{gap:2px}
-    .area-chart{height:112px}
-    .history-row{grid-template-columns:minmax(0,1fr) minmax(72px,.7fr) minmax(72px,.7fr);gap:8px}
-    .history-row strong{overflow-wrap:anywhere}
-    .incident-row time{max-width:35%;overflow-wrap:anywhere}
-    footer{align-items:flex-start}
+  /* Chart sizing contract: the parent owns the dimensions; LayerChart SVG fills it. */
+  .service-list :global(.m3-card) {
+    min-width: 0;
+    border-radius: 24px;
   }
-  @media(max-width:560px){.incident-row{grid-template-columns:8px minmax(0,1fr);row-gap:5px}.incident-row time{grid-column:2;grid-row:2;text-align:left;white-space:normal;max-width:none}.incident-row>div{grid-column:2;grid-row:1}}
-  @media(max-width:380px){
-    .shell{padding-inline:12px}
-    .live-indicator{gap:5px}
-    .top-actions{gap:8px}
-    h1{font-size:32px}
-    .service-metrics{gap:5px}
-    .history-row{grid-template-columns:minmax(0,1fr) 68px 68px}
-    .history-row strong{font-size:10px}
+  .service-card {
+    min-width: 0;
+    padding: 20px;
   }
-
-
-  .area-chart :global(svg text){display:none!important}
-  .area-chart :global(.lc-root-container){width:100%;height:100%;overflow:hidden;border-radius:11px}
-  .area-chart :global(.lc-axis text){display:none!important}
-  .area-chart :global(svg){border-radius:0!important}
-  .area-chart{border-radius:16px!important;background:color-mix(in srgb,var(--m3c-surface-container-low) 40%,transparent)!important}
-  .latency-graph{min-width:0;width:100%;overflow:hidden}
-  .uptime-title{align-items:center}
-  @media(max-width:560px){.area-chart{height:112px}.service-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.service-metrics strong{overflow-wrap:anywhere}}
+  .service-main,
+  .service-metrics,
+  .uptime-block,
+  .latency-graph,
+  .service-foot {
+    min-width: 0;
+    width: 100%;
+  }
+  .service-metrics > div {
+    min-width: 0;
+  }
+  .service-metrics strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .uptime-bars {
+    grid-template-columns: repeat(60, minmax(0, 1fr));
+  }
+  .area-chart {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: 132px;
+    padding: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 0;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--m3c-surface-container-low) 40%, transparent);
+  }
+  .area-chart :global(svg),
+  .area-chart :global(.lc-root-container),
+  .area-chart :global(.chart-container),
+  .area-chart :global(.chart-wrapper) {
+    display: block;
+    width: 100% !important;
+    min-width: 0;
+    max-width: 100%;
+    height: 100% !important;
+    overflow: hidden;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  .area-chart :global(svg text),
+  .area-chart :global(.lc-axis text) {
+    display: none !important;
+  }
+  .chart-axis-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 6px;
+    color: var(--m3c-on-surface-variant);
+    font-size: 10px;
+  }
+  .history-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 150px) minmax(0, 150px);
+  }
+  .section-heading,
+  .hero-meta,
+  .service-foot,
+  footer {
+    min-width: 0;
+  }
+  @media (max-width: 700px) {
+    .shell { padding-inline: 20px; }
+    .history-row { grid-template-columns: minmax(0, 1fr) minmax(80px, .7fr) minmax(80px, .7fr); }
+    .section-heading { align-items: flex-start; flex-wrap: wrap; }
+  }
+  @media (max-width: 560px) {
+    .shell { padding-inline: 16px; }
+    .service-card { padding: 16px; }
+    .service-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .metric-label { font-size: 10px; }
+    .service-metrics strong { font-size: 15px; overflow-wrap: anywhere; }
+    .uptime-bars { gap: 2px; }
+    .area-chart { height: 112px; }
+    .history-row { grid-template-columns: minmax(0, 1fr) minmax(72px, .7fr) minmax(72px, .7fr); gap: 8px; }
+    .history-row strong { overflow-wrap: anywhere; }
+    .incident-row { grid-template-columns: 8px minmax(0, 1fr); row-gap: 5px; }
+    .incident-row > div { grid-column: 2; grid-row: 1; }
+    .incident-row time { grid-column: 2; grid-row: 2; text-align: left; white-space: normal; max-width: none; overflow-wrap: anywhere; }
+    footer { align-items: flex-start; flex-wrap: wrap; }
+  }
+  @media (max-width: 380px) {
+    .shell { padding-inline: 12px; }
+    .live-indicator { gap: 5px; }
+    .top-actions { gap: 8px; }
+    h1 { font-size: 32px; }
+    .service-metrics { gap: 5px; }
+    .history-row { grid-template-columns: minmax(0, 1fr) 68px 68px; }
+    .history-row strong { font-size: 10px; }
+  }
 </style>
