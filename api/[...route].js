@@ -1,4 +1,5 @@
 import config from "../services.json";
+import { readChecks, readRecentChecks, saveChecks } from "../src/lib/server/monitoring-db.js";
 
 const services = config.services;
 const validPeriods = ["24h", "7d", "30d"];
@@ -13,6 +14,48 @@ function headers(res, cache = "no-store") {
 }
 function send(res, status, body) { return res.status(status).json(body); }
 function safePeriod(value) { return validPeriods.includes(value) ? value : "24h"; }
+const PERIOD_MS = { "24h": 86400000, "7d": 604800000, "30d": 2592000000 };
+
+async function persistChecks(records) {
+  try { await saveChecks(records); return true; }
+  catch (error) {
+    console.error("Monitoring history could not be saved:", error?.message || error);
+    return false;
+  }
+}
+
+function makeIncidents(records) {
+  const byService = new Map();
+  for (const record of records) {
+    if (!byService.has(record.serviceId)) byService.set(record.serviceId, []);
+    byService.get(record.serviceId).push(record);
+  }
+  const incidents = [];
+  for (const [serviceId, checks] of byService) {
+    checks.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+    let open = null;
+    for (const record of checks) {
+      if (record.status === "down" && !open) {
+        open = {
+          serviceId, serviceName: record.serviceName, startedAt: record.timestamp,
+          lastFailureAt: record.timestamp, resolvedAt: null, status: "ongoing",
+          errorCategory: record.errorCategory || null, error: record.error || null
+        };
+      } else if (record.status === "down" && open) {
+        open.lastFailureAt = record.timestamp;
+        open.errorCategory = record.errorCategory || open.errorCategory;
+        open.error = record.error || open.error;
+      } else if (record.status !== "down" && open) {
+        open.resolvedAt = record.timestamp;
+        open.status = "resolved";
+        incidents.push(open);
+        open = null;
+      }
+    }
+    if (open) incidents.push(open);
+  }
+  return incidents.sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+}
 
 function classifyNetworkError(cause) {
   const detail = `${cause?.cause?.code || cause?.code || ""} ${cause?.message || ""}`;
@@ -138,22 +181,69 @@ export default async function handler(req, res) {
 
   if (parts[1] === "ping" || (parts[1] === "status" && parts.length === 2)) {
     const records = await Promise.all(services.map(check));
+    const historyAvailable = await persistChecks(records);
     const views = records.map((record, index) => view(services[index], record));
     const result = summary(views);
-    return send(res, 200, { ...result, updatedAt: records.map((item) => item.timestamp).sort().at(-1), liveOnly: true, historyAvailable: false, services: views });
+    return send(res, 200, {
+      ...result,
+      updatedAt: records.map((item) => item.timestamp).sort().at(-1),
+      liveOnly: !historyAvailable,
+      historyAvailable,
+      services: views
+    });
   }
   if (parts[1] === "status" && parts.length === 3) {
     const service = services.find((item) => item.id === parts[2]);
     if (!service) return send(res, 404, { error: "Service not found" });
-    return send(res, 200, view(service, await check(service)));
+    const record = await check(service);
+    const historyAvailable = await persistChecks([record]);
+    return send(res, 200, { ...view(service, record), historyAvailable });
   }
   if ((parts[1] === "history" || parts[1] === "uptime") && parts.length === 3) {
     const service = services.find((item) => item.id === parts[2]);
     if (!service) return send(res, 404, { error: "Service not found" });
-    return send(res, 200, { serviceId: service.id, period: safePeriod(url.searchParams.get("period")), historyAvailable: false, history: [], uptime: { percentage: null, averageResponseTimeMs: null, successfulChecks: 0, failedChecks: 0, totalChecks: 0 }, message: "Historical monitoring is unavailable in live-only mode." });
+    const period = safePeriod(url.searchParams.get("period"));
+    try {
+      const records = await readChecks({ serviceId: service.id, since: new Date(Date.now() - PERIOD_MS[period]), limit: 10000 });
+      const successfulChecks = records.filter((record) => record.success === true).length;
+      const failedChecks = records.filter((record) => record.success === false).length;
+      const responseTimes = records.map((record) => record.responseTimeMs).filter(Number.isFinite);
+      const uptime = successfulChecks + failedChecks > 0 && successfulChecks > 0
+        ? Math.round(successfulChecks / (successfulChecks + failedChecks) * 10000) / 100
+        : null;
+      return send(res, 200, {
+        serviceId: service.id, period, historyAvailable: true, history: records,
+        uptime: {
+          percentage: uptime,
+          averageResponseTimeMs: responseTimes.length ? Math.round(responseTimes.reduce((sum, value) => sum + value, 0) / responseTimes.length * 100) / 100 : null,
+          successfulChecks, failedChecks, totalChecks: successfulChecks + failedChecks
+        },
+        coverage: records.length === 0 ? "collecting" : successfulChecks === 0 ? "outage-records-only" : "observed",
+        message: records.length === 0
+          ? "Collecting real monitoring data. No checks are available for this period yet."
+          : successfulChecks === 0
+            ? "Only actual outage checks are available after the history reset. Earlier uptime is unknown, not assumed."
+            : "Statistics use recorded checks only. Missing intervals are not counted as successful."
+      });
+    } catch {
+      return send(res, 503, {
+        serviceId: service.id, period, historyAvailable: false, history: [],
+        uptime: { percentage: null, averageResponseTimeMs: null, successfulChecks: 0, failedChecks: 0, totalChecks: 0 },
+        message: "MongoDB history is unavailable. Configure MONGODB_URI in Netlify to enable history."
+      });
+    }
   }
   if (parts[1] === "incidents" && parts.length === 2) {
-    return send(res, 200, { historyAvailable: false, period: safePeriod(url.searchParams.get("period")), incidents: [], message: "No persisted incident history is configured." });
+    const period = safePeriod(url.searchParams.get("period"));
+    try {
+      const records = await readRecentChecks(new Date(Date.now() - PERIOD_MS[period]));
+      return send(res, 200, {
+        historyAvailable: true, period, incidents: makeIncidents(records),
+        message: "Incidents are derived from real recorded failed and successful checks. Missing start times are not invented."
+      });
+    } catch {
+      return send(res, 503, { historyAvailable: false, period, incidents: [], message: "MongoDB history is unavailable. Configure MONGODB_URI in Netlify to enable incidents." });
+    }
   }
   if (parts[1] === "domain-health" && parts.length === 2) {
     const host = "imreallyadi.space";
