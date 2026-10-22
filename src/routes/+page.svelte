@@ -30,11 +30,11 @@
   const latency = (value) => Number.isFinite(value) ? Math.round(value) + " ms" : "—";
   const percent = (value) => Number.isFinite(value) ? value.toFixed(2) + "%" : "Collecting data";
   const points = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs) && item.success);
-  const pathFor = (history, width = 560, height = 88) => {
+  const pathFor = (history, width = 560, height = 120) => {
     const values = points(history);
     if (values.length < 2) return "";
     const max = Math.max(...values.map((p) => p.responseTimeMs), 1);
-    const coords = values.map((p, i) => ({ x: (i / (values.length - 1)) * width, y: height - (p.responseTimeMs / max) * (height - 12) - 6 }));
+    const coords = values.map((p, i) => ({ x: (i / (values.length - 1)) * width, y: height - (p.responseTimeMs / max) * (height - 14) - 7 }));
     let path = `M ${coords[0].x} ${coords[0].y}`;
     for (let i = 1; i < coords.length; i++) {
       const prev = coords[i - 1], current = coords[i];
@@ -43,6 +43,11 @@
       if (i === coords.length - 1) path += ` T ${current.x} ${current.y}`;
     }
     return path;
+  };
+  const areaPathFor = (history, width = 560, height = 120) => {
+    const line = pathFor(history, width, height);
+    if (!line) return "";
+    return `${line} L ${width} ${height} L 0 ${height} Z`;
   };
   const bars = (history) => {
     const list = history || [];
@@ -131,7 +136,7 @@
     <a class="brand" href="/" aria-label="adi.rest status home">adi.rest</a>
     <div class="top-actions">
       <span class="live-indicator"><span></span> Live monitoring</span>
-      <button class="theme-toggle" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Switch to light theme" : "Switch to dark theme"}><svg class="theme-icon contrast-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18Z" class="contrast-fill"/></svg></button>
+      <button class="theme-toggle" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Switch to light theme" : "Switch to dark theme"}>{#if dark}<svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2 M12 20v2 M4.93 4.93l1.42 1.42 M17.65 17.65l1.42 1.42 M2 12h2 M20 12h2 M4.93 19.07l1.42-1.42 M17.65 6.35l1.42-1.42" stroke-linecap="round"/></svg>{:else}<svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}</button>
     </div>
   </header>
 
@@ -177,10 +182,20 @@
                 <div class="latency-graph">
                   <div class="uptime-title"><span>Response time</span><span>{historyData?.history?.length ? "milliseconds" : "No history yet"}</span></div>
                   {#if points(historyData?.history).length > 1}
-                    <svg viewBox="0 0 560 88" preserveAspectRatio="none" role="img" aria-label={"Response time graph for " + service.name}>
-                      <path class="graph-grid" d="M0 22H560 M0 44H560 M0 66H560" />
-                      <path class="graph-line" d={pathFor(historyData.history)} />
-                    </svg>
+                    <div class="area-chart" role="img" aria-label={"Area chart of recorded response times for " + service.name}>
+                      <svg viewBox="0 0 560 132" preserveAspectRatio="none" aria-hidden="true">
+                        <defs>
+                          <linearGradient id={"latency-fill-" + service.id} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="var(--m3c-primary)" stop-opacity=".30" />
+                            <stop offset="100%" stop-color="var(--m3c-primary)" stop-opacity=".015" />
+                          </linearGradient>
+                        </defs>
+                        <path class="chart-grid" d="M0 20H560 M0 52H560 M0 84H560 M0 116H560" />
+                        <path class="chart-area-fill" d={areaPathFor(historyData.history)} fill={"url(#latency-fill-" + service.id + ")"} />
+                        <path class="chart-area-line" d={pathFor(historyData.history, 560, 120)} />
+                      </svg>
+                    </div>
+                    <div class="chart-axis-labels"><span>Earlier</span><span>Most recent checks</span></div>
                   {:else}
                     <div class="graph-empty">A graph will appear as real monitoring history accumulates.</div>
                   {/if}
@@ -271,7 +286,13 @@
   @keyframes boot-arrive{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes soft-pulse{0%,100%{opacity:.5}50%{opacity:1}}
   .theme-toggle{overflow:hidden;flex-shrink:0;transition:transform .2s ease,background-color .24s ease,border-color .24s ease,color .24s ease}
-  .theme-toggle :global(svg){transition:transform .24s ease,opacity .24s ease}.theme-toggle:hover :global(svg){transform:rotate(-12deg) scale(1.04)}
+  .theme-toggle :global(svg){transition:opacity .24s ease}
+  .area-chart{height:132px;width:100%;overflow:hidden;border-radius:18px}
+  .area-chart svg{display:block;width:100%;height:100%;overflow:visible}
+  .chart-grid{fill:none;stroke:var(--m3c-outline-variant);stroke-width:1;stroke-dasharray:3 6;vector-effect:non-scaling-stroke}
+  .chart-area-fill{stroke:none}
+  .chart-area-line{fill:none;stroke:var(--m3c-primary);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 2px 2px color-mix(in srgb,var(--m3c-primary) 15%,transparent))}
+  .chart-axis-labels{display:flex;justify-content:space-between;margin-top:6px;color:var(--m3c-on-surface-variant);font-size:10px}
   .theme-toggle:active{transform:scale(.9)}
   button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:color .22s ease,background-color .22s ease,border-color .22s ease,transform .22s cubic-bezier(.2,.8,.2,1),opacity .22s ease,box-shadow .22s ease}
   button:not(:disabled){cursor:pointer}
@@ -298,6 +319,6 @@
   @keyframes bar-grow{from{transform:scaleY(.25);opacity:.4}to{transform:scaleY(1);opacity:1}}
   @keyframes draw-graph{to{stroke-dashoffset:0}}
   @keyframes status-breathe{0%,100%{box-shadow:0 0 0 0 rgb(37 134 83 / 0%)}50%{box-shadow:0 0 0 4px rgb(37 134 83 / 10%)}}
-  @media(prefers-reduced-motion:reduce){.boot-brand,.boot-caption,.theme-toggle :global(svg),.service-list :global(.m3-card),.uptime-bar,.graph-line,.status-dot.up{animation:none!important}.booting{visibility:hidden}button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:none!important}}
+  @media(prefers-reduced-motion:reduce){.boot-brand,.boot-caption,.service-list :global(.m3-card),.uptime-bar,.graph-line,.chart-area-line,.status-dot.up{animation:none!important}.booting{visibility:hidden}button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:none!important}}
 
 </style>
