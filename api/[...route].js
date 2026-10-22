@@ -2,6 +2,7 @@ import config from "../services.json";
 
 const services = config.services;
 const validPeriods = ["24h", "7d", "30d"];
+const STALE_AFTER_MS = Math.max(30000, config.staleAfterMs || 180000);
 
 function headers(res, cache = "no-store") {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -12,7 +13,6 @@ function headers(res, cache = "no-store") {
 }
 function send(res, status, body) { return res.status(status).json(body); }
 function safePeriod(value) { return validPeriods.includes(value) ? value : "24h"; }
-function cutoff(period) { return Date.now() - (period === "7d" ? 7 : period === "30d" ? 30 : 1) * 86400000; }
 
 function classifyNetworkError(cause) {
   const detail = `${cause?.cause?.code || cause?.code || ""} ${cause?.message || ""}`;
@@ -33,9 +33,6 @@ function validatePayload(service, response, payload) {
   const criteria = service.expectedJson;
   if (criteria && (payload === null || typeof payload !== "object" || Array.isArray(payload))) {
     return { category: "payload", message: "Expected a JSON object response" };
-  }
-  if (criteria?.type === "object" && (!payload || typeof payload !== "object" || Array.isArray(payload))) {
-    return { category: "payload", message: "API response did not match the expected object schema" };
   }
   if (Array.isArray(criteria?.requiredAny) && criteria.requiredAny.length &&
       !criteria.requiredAny.some((key) => Object.hasOwn(payload, key))) {
@@ -100,15 +97,6 @@ async function check(service) {
     timestamp, statusCode, responseTimeMs, success, status, errorCategory, error
   };
 }
-function stats(records) {
-  if (!records.length) return { percentage: null, averageResponseTimeMs: null, successfulChecks: 0, failedChecks: 0, totalChecks: 0 };
-  const successful = records.filter((item) => item.success);
-  return {
-    percentage: Math.round(successful.length / records.length * 10000) / 100,
-    averageResponseTimeMs: successful.length ? Math.round(successful.reduce((sum, item) => sum + item.responseTimeMs, 0) / successful.length * 100) / 100 : null,
-    successfulChecks: successful.length, failedChecks: records.length - successful.length, totalChecks: records.length
-  };
-}
 function view(service, record) {
   return {
     id: service.id, name: service.name, description: service.description, url: service.url,
@@ -116,10 +104,12 @@ function view(service, record) {
     statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[record.status],
     latest: { timestamp: record.timestamp, statusCode: record.statusCode, responseTimeMs: record.responseTimeMs, success: record.success, errorCategory: record.errorCategory, error: record.error },
     lastSuccessfulCheck: record.success ? record.timestamp : null,
-    lastFailedCheck: record.success ? null : record.timestamp
+    lastFailedCheck: record.success ? null : record.timestamp,
+    stale: Date.now() - Date.parse(record.timestamp) > STALE_AFTER_MS
   };
 }
 function summary(views) {
+  if (views.some((item) => item.stale)) return { status: "unknown", message: "Status Temporarily Unavailable" };
   const down = views.filter((item) => item.status === "down").length;
   const degraded = views.some((item) => item.status === "degraded");
   const status = down === views.length ? "down" : down ? "partial" : degraded ? "degraded" : "up";
@@ -133,8 +123,6 @@ export default async function handler(req, res) {
   const parts = url.pathname.split("/").filter(Boolean);
   if (parts[0] !== "api") return send(res, 404, { error: "Not found" });
 
-  // One live-check implementation is used by both Vercel and SvelteKit routes.
-  // Historical data is intentionally unavailable rather than fabricated or stored in a DB.
   if (parts[1] === "ping" || (parts[1] === "status" && parts.length === 2)) {
     const records = await Promise.all(services.map(check));
     const views = records.map((record, index) => view(services[index], record));
@@ -149,8 +137,7 @@ export default async function handler(req, res) {
   if ((parts[1] === "history" || parts[1] === "uptime") && parts.length === 3) {
     const service = services.find((item) => item.id === parts[2]);
     if (!service) return send(res, 404, { error: "Service not found" });
-    const period = safePeriod(url.searchParams.get("period"));
-    return send(res, 200, { serviceId: service.id, period, historyAvailable: false, history: [], uptime: { percentage: null, averageResponseTimeMs: null, successfulChecks: 0, failedChecks: 0, totalChecks: 0 }, message: "Historical monitoring is unavailable in live-only mode." });
+    return send(res, 200, { serviceId: service.id, period: safePeriod(url.searchParams.get("period")), historyAvailable: false, history: [], uptime: { percentage: null, averageResponseTimeMs: null, successfulChecks: 0, failedChecks: 0, totalChecks: 0 }, message: "Historical monitoring is unavailable in live-only mode." });
   }
   if (parts[1] === "incidents" && parts.length === 2) {
     return send(res, 200, { historyAvailable: false, period: safePeriod(url.searchParams.get("period")), incidents: [], message: "No persisted incident history is configured." });
