@@ -361,7 +361,9 @@
   .incidents-section .section-heading>div{display:flex;flex-direction:column;align-items:flex-start;gap:7px}
   .incidents-section .section-heading .eyebrow{margin:0;line-height:1.2}
   .incidents-section .section-heading h2{margin:0;line-height:1.15}
-  .incidents-section .section-heading{margin-bottom:17px;align-items:flex-end}
+  .incidents-section .section-heading{margin-bottom:8px!important;align-items:flex-end}
+  .incidents-section :global(.m3-card){margin-top:0!important}
+  .incidents-section .section-heading>div{gap:2px!important}
 
   .area-chart :global(svg text){display:none!important}
   .area-chart :global(.lc-root-container){width:100%;height:100%;overflow:hidden;border-radius:11px}
