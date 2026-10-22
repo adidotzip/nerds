@@ -11,10 +11,10 @@
     "build": "svelte-kit sync && vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "deploy": "npm run build && vercel --prod",
     "add:animated-icons": "npx shadcn@latest add @animate-ui/icons-hugeicons-sun-medium @animate-ui/icons-hugeicons-moon-02",
     "add:animated-sun": "npx shadcn@latest add @animate-ui/icons-hugeicons-sun-medium",
-    "add:animated-moon": "npx shadcn@latest add @animate-ui/icons-hugeicons-moon-02"
+    "add:animated-moon": "npx shadcn@latest add @animate-ui/icons-hugeicons-moon-02",
+    "deploy:netlify": "npm run build"
   },
   "dependencies": {
     "@sveltejs/kit": "^2.49.2",
@@ -23,7 +23,7 @@
     "svelte": "^5.40.0",
     "vite": "^7.3.6",
     "@ktibow/iconset-material-symbols": "^0.0.1764827375",
-    "@sveltejs/adapter-vercel": "^5.8.0"
+    "@sveltejs/adapter-netlify": "^5.2.4"
   },
   "devDependencies": {
     "svelte-check": "^4.7.6",
