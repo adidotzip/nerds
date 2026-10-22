@@ -12,22 +12,11 @@ async function dispatch({ request }) {
   let statusCode = 200;
   const responseHeaders = {};
   let body = null;
-
   const res = {
-    setHeader(name, value) {
-      responseHeaders[name] = value;
-      return this;
-    },
-    status(code) {
-      statusCode = code;
-      return this;
-    },
-    json(value) {
-      body = value;
-      return this;
-    }
+    setHeader(name, value) { responseHeaders[name] = value; return this; },
+    status(code) { statusCode = code; return this; },
+    json(value) { body = value; return this; }
   };
-
   await handler(req, res);
   return new Response(JSON.stringify(body ?? { error: "Empty API response" }), {
     status: statusCode,
@@ -36,7 +25,3 @@ async function dispatch({ request }) {
 }
 
 export const GET = dispatch;
-export const POST = dispatch;
-export const PUT = dispatch;
-export const PATCH = dispatch;
-export const DELETE = dispatch;
