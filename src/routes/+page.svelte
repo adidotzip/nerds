@@ -32,7 +32,8 @@
   const latency = (value) => Number.isFinite(value) ? Math.round(value) + " ms" : "—";
   const percent = (value) => Number.isFinite(value) ? value.toFixed(2) + "%" : "Collecting data";
   const points = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs) && item.success);
-  const chartPoints = (history) => points(history).map((item) => ({
+  const chartPoints = (history) => points(history).map((item, index) => ({
+    index: index + 1,
     timestamp: new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     responseTimeMs: item.responseTimeMs
   }));
