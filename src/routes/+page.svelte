@@ -288,9 +288,9 @@
   @keyframes soft-pulse{0%,100%{opacity:.5}50%{opacity:1}}
   .theme-toggle{overflow:hidden;flex-shrink:0;transition:transform .2s ease,background-color .24s ease,border-color .24s ease,color .24s ease}
   .theme-toggle :global(svg){transition:opacity .24s ease}
-  .area-chart{height:132px;width:100%;overflow:hidden;border-radius:18px}
-  .area-chart svg{display:block;width:100%;height:100%;overflow:visible}
-  .chart-grid{fill:none;stroke:var(--m3c-outline-variant);stroke-width:1;stroke-dasharray:3 6;vector-effect:non-scaling-stroke}
+  .area-chart{height:132px;width:100%;overflow:hidden;border-radius:0;border:0;outline:0;box-shadow:none;background:transparent}
+  .area-chart svg{display:block;width:100%;height:100%;overflow:visible;border:0;outline:0;box-shadow:none;background:transparent}
+  .chart-grid{fill:none;stroke:color-mix(in srgb,var(--m3c-outline-variant) 55%,transparent);stroke-width:1;stroke-dasharray:3 6;vector-effect:non-scaling-stroke}
   .chart-area-fill{stroke:none}
   .chart-area-line{fill:none;stroke:var(--m3c-primary);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 2px 2px color-mix(in srgb,var(--m3c-primary) 15%,transparent))}
   .chart-axis-labels{display:flex;justify-content:space-between;margin-top:6px;color:var(--m3c-on-surface-variant);font-size:10px}
