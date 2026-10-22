@@ -38,12 +38,15 @@ function validatePayload(service, response, payload) {
       !criteria.requiredAny.some((key) => Object.hasOwn(payload, key))) {
     return { category: "payload", message: "API response is missing all recognized top-level fields" };
   }
-  if (service.expectedJsonFields && service.expectedJsonFields.some((key) => !Object.hasOwn(payload, key))) {
+  if (service.expectedJsonFields && service.expectedJsonFields.some((path) => {
+    const value = getJsonPath(payload, path);
+    return value === undefined || value === null;
+  })) {
     return { category: "payload", message: "API health response is missing required fields" };
   }
   if (service.expectedJsonValues) {
-    for (const [key, expected] of Object.entries(service.expectedJsonValues)) {
-      if (JSON.stringify(payload[key]) !== JSON.stringify(expected)) {
+    for (const [path, expected] of Object.entries(service.expectedJsonValues)) {
+      if (JSON.stringify(getJsonPath(payload, path)) !== JSON.stringify(expected)) {
         return { category: "payload", message: "API health response did not match an expected field" };
       }
     }
