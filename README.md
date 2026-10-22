@@ -1,6 +1,6 @@
 # adi.rest Status
 
-A minimalist SvelteKit status page for adi.rest, deployed to Vercel. No database, notifications, or alerting integrations are used.
+A minimalist SvelteKit status page for adi.rest, deployed to Netlify. No database, notifications, or alerting integrations are used.
 
 ## Monitoring rules
 
@@ -10,17 +10,12 @@ The Lyrics API monitor targets `https://lyrics.adi.rest/api/health` rather than 
 
 ## Current runtime limitations
 
-Checks are live request results, not persisted history. Vercel's serverless memory and function filesystem are not durable across invocations. The consecutive-failure/recovery thresholds remain configured, but **live-only mode cannot enforce them without persisted prior records**. Historical uptime and incident APIs therefore explicitly report history unavailable instead of inventing values.
+Checks are live request results, not persisted history. Netlify's serverless function filesystem and memory are not durable across invocations. The consecutive-failure/recovery thresholds remain configured, but **live-only mode cannot enforce them without persisted prior records**. Historical uptime and incident APIs therefore explicitly report history unavailable instead of inventing values.
 
 To provide real 24h/7d/30d uptime, consecutive-failure hysteresis, last-success/last-failure continuity and incidents while respecting the no-database requirement, use a scheduled runtime with persistent flat-file JSONL storage. Do not treat Vercel's temporary local filesystem as durable.
 
-## Deploy
+## Deploy to Netlify
 
-```sh
-npm install
-npm run check
-npm run build
-npx vercel --prod
-```
+Netlify uses the SvelteKit Netlify adapter. The repository includes `netlify.toml`; set the Netlify build command to `npm run build` and publish directory to `build/client` (or let Netlify read the config file). Install dependencies with `npm install`, run `npm run check` and `npm run build`, then deploy through the connected Git repository. No Vercel CLI or Vercel cron configuration is required for the build.
 
 No notifications, alerts, email, Discord or Telegram integrations are included.
