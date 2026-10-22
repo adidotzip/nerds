@@ -1,6 +1,6 @@
 # adi.rest Status
 [![Netlify Status](https://api.netlify.com/api/v1/badges/652c5595-4ed9-44e2-bb23-afb1ffda529e/deploy-status)](https://app.netlify.com/projects/magical-kashata-b89e3a/deploys)
-A minimalist SvelteKit status page for adi.rest, deployed to Netlify. No database, notifications, or alerting integrations are used.
+A minimalist SvelteKit status page for adi.rest, deployed to Netlify. MongoDB stores real monitoring checks; no notifications or alerting integrations are used.
 
 ## Monitoring rules
 
@@ -8,14 +8,16 @@ The configured URLs in `services.json` are checked server-side. Checks measure e
 
 The Lyrics API monitor targets `https://lyrics.adi.rest/api/health` rather than treating the root API router as proof of health. The documented health endpoint returns `ok: true`, `name: Adi Lyrics`, a version, and provider information. The checker validates its JSON content type, object response, required fields and expected `ok`/name values. Other service checks target their exact configured URLs.
 
-## Current runtime limitations
+## Monitoring history and MongoDB
 
-Checks are live request results, not persisted history. Netlify's serverless function filesystem and memory are not durable across invocations. The consecutive-failure/recovery thresholds remain configured, but **live-only mode cannot enforce them without persisted prior records**. Historical uptime and incident APIs therefore explicitly report history unavailable instead of inventing values.
+Set `MONGODB_URI` in Netlify's environment variables to a MongoDB connection string. Optionally set `MONGODB_DB`; the default database name is `adi_rest_status`. Never commit the connection string to the repository. The app records real check results when its status endpoints are requested and derives history, uptime, and incidents from those records. If MongoDB is missing or unavailable, live checks still respond, but history is reported as unavailable.
 
-To provide real 24h/7d/30d uptime, consecutive-failure hysteresis, last-success/last-failure continuity and incidents while respecting the no-database requirement, use a scheduled runtime with persistent flat-file JSONL storage. Do not treat Vercel's temporary local filesystem as durable.
+On the first database access, a one-time cleanup removes prior records outside the last 24 hours and non-outage records, preserving only genuine outage checks from the last 24 hours. It does not create fake or backdated checks. A currently failing service without an earlier recorded failure is shown as down from its first observed failure; its earlier start time and uptime are unknown. Fresh checks are then stored normally. Check records expire after 30 days.
+
+Monitoring runs when the status API is requested; it is not a guaranteed background schedule. The frontend refreshes while visitors are on the page, so unattended minute-by-minute monitoring requires a separate scheduled function or worker.
 
 ## Deploy to Netlify
 
-Netlify uses the SvelteKit Netlify adapter. The repository includes `netlify.toml`; set the Netlify build command to `npm run build` and publish directory to `build/client` (or let Netlify read the config file). Install dependencies with `npm install`, run `npm run check` and `npm run build`, then deploy through the connected Git repository. No Vercel CLI or Vercel cron configuration is required for the build.
+Netlify uses the SvelteKit Netlify adapter. The repository includes `netlify.toml`; set the Netlify build command to `npm run build` and publish directory to `build` (or let Netlify read the config file). Install dependencies with `npm install`, run `npm run check` and `npm run build`, then deploy through the connected Git repository. No Vercel CLI or Vercel cron configuration is required for the build.
 
 No notifications, alerts, email, Discord or Telegram integrations are included.

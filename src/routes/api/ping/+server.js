@@ -1,4 +1,5 @@
 import config from "../../../../services.json";
+import { saveChecks } from "../../../lib/server/monitoring-db.js";
 
 export const prerender = false;
 
@@ -117,6 +118,25 @@ async function check(service) {
 
 export async function GET() {
   const checks = await Promise.all(config.services.map(check));
+  let historyAvailable = false;
+  try {
+    await saveChecks(checks.map((service) => ({
+      serviceId: service.id,
+      serviceName: service.name,
+      serviceUrl: service.url,
+      finalUrl: service.finalUrl,
+      timestamp: service.latest.timestamp,
+      statusCode: service.latest.statusCode,
+      responseTimeMs: service.latest.responseTimeMs,
+      success: service.latest.success,
+      status: service.status,
+      errorCategory: service.latest.errorCategory,
+      error: service.latest.error
+    })));
+    historyAvailable = true;
+  } catch (cause) {
+    console.error("Monitoring history could not be saved:", cause?.message || cause);
+  }
   const updatedAt = checks.map((service) => service.latest.timestamp).sort().at(-1) || null;
   const stale = !updatedAt || Date.now() - Date.parse(updatedAt) > STALE_AFTER_MS;
   const down = checks.filter((service) => service.status === "down").length;
@@ -134,8 +154,8 @@ export async function GET() {
     })[status],
     updatedAt,
     stale,
-    liveOnly: true,
-    historyAvailable: false,
+    liveOnly: !historyAvailable,
+    historyAvailable,
     monitoringPolicy: {
       statefulHysteresisAvailable: false,
       note: "Consecutive-failure and recovery thresholds require persisted previous check results. Live-only checks do not claim to apply hysteresis."
