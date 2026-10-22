@@ -77,7 +77,7 @@
     refreshing = true;
     try {
       const [status, incidentData, domainData] = await Promise.all([
-        fetchJson("/api/ping"),
+        fetchJson("/api/current-status"),
         fetchJson("/api/incidents?period=24h").catch(() => ({ incidents: [] })),
         fetchJson("/api/domain-health").catch(() => null)
       ]);
