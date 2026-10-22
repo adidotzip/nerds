@@ -189,7 +189,7 @@
                     <div class="area-chart" role="img" aria-label={"Area chart of recorded response times for " + service.name}>
                       <AreaChart
                         data={chartPoints(historyData.history)}
-                        x="timestamp"
+                        x="index"
                         y="responseTimeMs"
                         height={130}
                       />
@@ -355,4 +355,13 @@
     .history-row strong{font-size:10px}
   }
 
+
+  .area-chart :global(svg text){display:none!important}
+  .area-chart :global(.lc-root-container){width:100%;height:100%;overflow:hidden;border-radius:11px}
+  .area-chart :global(.lc-axis text){display:none!important}
+  .area-chart :global(svg){border-radius:0!important}
+  .area-chart{border-radius:16px!important;background:color-mix(in srgb,var(--m3c-surface-container-low) 40%,transparent)!important}
+  .latency-graph{min-width:0;width:100%;overflow:hidden}
+  .uptime-title{align-items:center}
+  @media(max-width:560px){.area-chart{height:112px}.service-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.service-metrics strong{overflow-wrap:anywhere}}
 </style>
