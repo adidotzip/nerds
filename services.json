@@ -9,7 +9,10 @@
       "name": "adi.rest",
       "description": "Main website",
       "url": "https://adi.rest/",
-      "expectedStatus": [200, 299],
+      "expectedStatus": [
+        200,
+        299
+      ],
       "timeoutMs": 10000,
       "connectTimeoutMs": 4000,
       "degradedMs": 1500,
@@ -18,9 +21,12 @@
     {
       "id": "lyrics-api",
       "name": "Lyrics API",
-      "description": "lyrics.adi.rest/api/",
-      "url": "https://lyrics.adi.rest/api/",
-      "expectedStatus": [200, 299],
+      "description": "Lyrics API health endpoint",
+      "url": "https://lyrics.adi.rest/api/health",
+      "expectedStatus": [
+        200,
+        299
+      ],
       "timeoutMs": 10000,
       "connectTimeoutMs": 4000,
       "degradedMs": 1500,
@@ -28,7 +34,22 @@
       "expectedContentType": "application/json",
       "expectedJson": {
         "type": "object",
-        "requiredAny": ["ok", "name", "version", "providers"]
+        "requiredAny": [
+          "ok",
+          "name",
+          "version",
+          "providers"
+        ]
+      },
+      "expectedJsonFields": [
+        "ok",
+        "name",
+        "version",
+        "providers"
+      ],
+      "expectedJsonValues": {
+        "ok": true,
+        "name": "Adi Lyrics"
       }
     },
     {
@@ -36,7 +57,10 @@
       "name": "imreallyadi.space",
       "description": "Secondary website",
       "url": "https://imreallyadi.space/",
-      "expectedStatus": [200, 299],
+      "expectedStatus": [
+        200,
+        299
+      ],
       "timeoutMs": 10000,
       "connectTimeoutMs": 4000,
       "degradedMs": 1500,
