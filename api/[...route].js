@@ -204,22 +204,40 @@ export default async function handler(req, res) {
     if (!service) return send(res, 404, { error: "Service not found" });
     const period = safePeriod(url.searchParams.get("period"));
     try {
-      const records = await readChecks({ serviceId: service.id, since: new Date(Date.now() - PERIOD_MS[period]), limit: 10000 });
-      const successfulChecks = records.filter((record) => record.success === true).length;
-      const failedChecks = records.filter((record) => record.success === false).length;
-      const responseTimes = records.map((record) => record.responseTimeMs).filter(Number.isFinite);
-      const uptime = successfulChecks + failedChecks > 0 && successfulChecks > 0
-        ? Math.round(successfulChecks / (successfulChecks + failedChecks) * 10000) / 100
-        : null;
-      return send(res, 200, {
-        serviceId: service.id, period, historyAvailable: true, history: records,
-        uptime: {
-          percentage: uptime,
-          averageResponseTimeMs: responseTimes.length ? Math.round(responseTimes.reduce((sum, value) => sum + value, 0) / responseTimes.length * 100) / 100 : null,
+      const allRecords = await readChecks({ serviceId: service.id, since: new Date(Date.now() - PERIOD_MS["30d"]), limit: 50000 });
+      const uptimeFor = (duration) => {
+        const since = Date.now() - PERIOD_MS[duration];
+        const subset = allRecords.filter((record) => Date.parse(record.timestamp) >= since);
+        const successfulChecks = subset.filter((record) => record.success === true).length;
+        const failedChecks = subset.filter((record) => record.success === false).length;
+        const responseTimes = subset.map((record) => record.responseTimeMs).filter(Number.isFinite);
+        return {
+          percentage: successfulChecks > 0 && successfulChecks + failedChecks > 0
+            ? Math.round(successfulChecks / (successfulChecks + failedChecks) * 10000) / 100
+            : null,
+          averageResponseTimeMs: responseTimes.length
+            ? Math.round(responseTimes.reduce((sum, value) => sum + value, 0) / responseTimes.length * 100) / 100
+            : null,
           successfulChecks, failedChecks, totalChecks: successfulChecks + failedChecks
-        },
-        coverage: records.length === 0 ? "collecting" : successfulChecks === 0 ? "outage-records-only" : "observed",
-        message: records.length === 0
+        };
+      };
+      const periodStart = Date.now() - PERIOD_MS[period];
+      const periodRecords = allRecords.filter((record) => Date.parse(record.timestamp) >= periodStart);
+      // Keep response payloads bounded while preserving real timestamped samples.
+      const maxSamples = 3000;
+      const history = periodRecords.length <= maxSamples ? periodRecords
+        : Array.from({ length: maxSamples }, (_, index) => periodRecords[Math.floor(index * (periodRecords.length - 1) / (maxSamples - 1))]);
+      const uptime = {
+        "24h": uptimeFor("24h"),
+        "7d": uptimeFor("7d"),
+        "30d": uptimeFor("30d")
+      };
+      const successfulChecks = uptime[period].successfulChecks;
+      const failedChecks = uptime[period].failedChecks;
+      return send(res, 200, {
+        serviceId: service.id, period, historyAvailable: true, history, uptime,
+        coverage: periodRecords.length === 0 ? "collecting" : successfulChecks === 0 ? "outage-records-only" : "observed",
+        message: periodRecords.length === 0
           ? "Collecting real monitoring data. No checks are available for this period yet."
           : successfulChecks === 0
             ? "Only actual outage checks are available after the history reset. Earlier uptime is unknown, not assumed."
@@ -228,7 +246,7 @@ export default async function handler(req, res) {
     } catch {
       return send(res, 503, {
         serviceId: service.id, period, historyAvailable: false, history: [],
-        uptime: { percentage: null, averageResponseTimeMs: null, successfulChecks: 0, failedChecks: 0, totalChecks: 0 },
+        uptime: { "24h": { percentage: null }, "7d": { percentage: null }, "30d": { percentage: null } },
         message: "MongoDB history is unavailable. Configure MONGODB_URI in Netlify to enable history."
       });
     }
