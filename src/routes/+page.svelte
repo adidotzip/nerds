@@ -191,6 +191,7 @@
                         data={chartPoints(historyData.history)}
                         x="timestamp"
                         y="responseTimeMs"
+                        height={130}
                       />
                     </div>
                     <div class="chart-axis-labels"><span>Earlier</span><span>Most recent checks</span></div>
