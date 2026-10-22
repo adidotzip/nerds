@@ -364,6 +364,12 @@
   .incidents-section .section-heading{margin-bottom:8px!important;align-items:flex-end}
   .incidents-section :global(.m3-card){margin-top:0!important}
   .incidents-section .section-heading>div{gap:2px!important}
+  /* Compact incident cards: remove excess vertical padding around a single failure row. */
+  .incidents-section :global(.m3-card){padding-block:0!important}
+  .incidents-section .incident-list{padding:0!important}
+  .incidents-section .incident-row{padding:12px 0!important;min-height:0!important}
+  .incidents-section .incident-row:last-child{padding-bottom:12px!important}
+  .incidents-section .empty-incidents{padding:20px 4px!important}
 
   .area-chart :global(svg text){display:none!important}
   .area-chart :global(.lc-root-container){width:100%;height:100%;overflow:hidden;border-radius:11px}
