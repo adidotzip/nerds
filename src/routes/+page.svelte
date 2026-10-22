@@ -357,6 +357,11 @@
     .history-row strong{font-size:10px}
   }
 
+  /* Keep the incident eyebrow and title tightly grouped, independent of library defaults. */
+  .incidents-section .section-heading>div{display:flex;flex-direction:column;align-items:flex-start;gap:7px}
+  .incidents-section .section-heading .eyebrow{margin:0;line-height:1.2}
+  .incidents-section .section-heading h2{margin:0;line-height:1.15}
+  .incidents-section .section-heading{margin-bottom:17px;align-items:flex-end}
 
   .area-chart :global(svg text){display:none!important}
   .area-chart :global(.lc-root-container){width:100%;height:100%;overflow:hidden;border-radius:11px}
