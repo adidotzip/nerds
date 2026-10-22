@@ -69,7 +69,7 @@ export async function readChecks({ serviceId, since, limit = 5000 } = {}) {
   if (serviceId) query.serviceId = serviceId;
   const docs = await checks.find(query)
     .sort({ timestamp: 1 })
-    .limit(Math.min(Math.max(limit, 1), 10000))
+    .limit(Math.min(Math.max(limit, 1), 50000))
     .toArray();
   return docs.map(({ _id, timestamp, ...record }) => ({
     ...record,
