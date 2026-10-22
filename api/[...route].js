@@ -37,7 +37,7 @@ function makeIncidents(records) {
     for (const record of checks) {
       if (record.status === "down" && !open) {
         open = {
-          serviceId, serviceName: record.serviceName, startedAt: record.timestamp,
+          serviceId, serviceName: record.serviceName, timestamp: record.timestamp, startedAt: record.timestamp,
           lastFailureAt: record.timestamp, resolvedAt: null, status: "ongoing",
           errorCategory: record.errorCategory || null, error: record.error || null
         };
