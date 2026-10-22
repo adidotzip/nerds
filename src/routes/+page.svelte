@@ -122,16 +122,14 @@
   <meta name="description" content="Live service status, historical uptime and response-time graphs for adi.rest." />
 </svelte:head>
 
-{#if initialLoading}
-  <div class="boot-screen" class:boot-screen-leaving={!initialLoading} role="status" aria-live="polite">
-    <span class="boot-brand">adi.rest</span>
-    <LoadingIndicator />
-    <p>Connecting to live monitoring</p>
-    <span class="boot-caption">Checking services and recent results</span>
-  </div>
-{/if}
+<div class="boot-screen" class:boot-screen-hidden={!initialLoading} role="status" aria-live="polite" aria-hidden={!initialLoading}>
+  <span class="boot-brand">adi.rest</span>
+  <LoadingIndicator />
+  <p>Connecting to live monitoring</p>
+  <span class="boot-caption">Checking services and recent results</span>
+</div>
 
-<div class:booting={initialLoading} class:page-visible={!initialLoading} class="shell">
+<div class:booting={initialLoading} class="shell">
   <header class="topbar">
     <a class="brand" href="/" aria-label="adi.rest status home">adi.rest</a>
     <div class="top-actions">
@@ -279,7 +277,7 @@
   .boot-screen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--m3c-surface);color:var(--m3c-on-surface);text-align:center;padding:24px;opacity:1;visibility:visible;transition:opacity .38s cubic-bezier(.2,.8,.2,1),visibility .38s step-end}
   .shell{opacity:1;transition:opacity .38s cubic-bezier(.2,.8,.2,1)}
   .shell.booting{opacity:0;visibility:hidden}
-  .boot-screen-leaving{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .38s cubic-bezier(.2,.8,.2,1),visibility 0s linear .38s}
+  .boot-screen-hidden{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .38s cubic-bezier(.2,.8,.2,1),visibility 0s linear .38s}
   .boot-brand{font-size:clamp(32px,6vw,44px);font-weight:700;letter-spacing:-.07em;animation:boot-arrive .65s cubic-bezier(.2,.8,.2,1) both}
   .boot-screen :global(*){transition:color .3s ease,background-color .3s ease}
   .boot-screen p{margin:0;font-size:14px;font-weight:600;letter-spacing:-.01em}
