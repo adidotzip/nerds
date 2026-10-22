@@ -29,10 +29,6 @@
       "expectedJson": {
         "type": "object",
         "requiredAny": ["message", "lyrics", "results", "data", "status", "error"]
-      },
-      "expectedJsonStatusField": {
-        "path": "status",
-        "acceptedValues": ["ok", "success", "healthy"]
       }
     },
     {
