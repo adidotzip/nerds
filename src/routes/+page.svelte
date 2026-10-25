@@ -325,6 +325,188 @@
   @media(prefers-reduced-motion:reduce){.boot-brand,.boot-caption,.service-list :global(.m3-card),.uptime-bar,.graph-line,.chart-area-line,.status-dot.up{animation:none!important}.boot-screen,.shell{transition:none!important}.booting{visibility:hidden}button,a,[role="slider"],input,select,.service-card,.history-row,.incident-row,.uptime-bar,.graph-line,.status-word{transition:none!important}}
 
 
+
+  /* Homepage polish inspired by Dynamic Background: layered surfaces, soft depth,
+     and a restrained glow that never masks content or clips the page. */
+  .shell {
+    position: relative;
+    isolation: isolate;
+    overflow: clip;
+    border-radius: 0;
+  }
+  .shell::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    inset: 0 -12vw auto;
+    height: 560px;
+    opacity: .7;
+    background:
+      radial-gradient(ellipse at 16% 12%, color-mix(in srgb, var(--m3c-primary) 13%, transparent), transparent 54%),
+      radial-gradient(ellipse at 88% 10%, color-mix(in srgb, var(--m3c-tertiary) 12%, transparent), transparent 48%);
+    mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / .8) 42%, transparent 100%);
+  }
+  .topbar {
+    border-bottom-color: color-mix(in srgb, var(--m3c-outline-variant) 58%, transparent);
+  }
+  .live-indicator {
+    padding: 8px 12px;
+    border: 1px solid color-mix(in srgb, var(--m3c-outline-variant) 65%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--m3c-surface-container-low) 72%, transparent);
+    backdrop-filter: blur(16px) saturate(1.12);
+    -webkit-backdrop-filter: blur(16px) saturate(1.12);
+  }
+  .live-indicator > span {
+    box-shadow: 0 0 0 4px color-mix(in srgb, #258653 12%, transparent);
+  }
+  .theme-toggle {
+    backdrop-filter: blur(16px) saturate(1.1);
+    -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  }
+  .hero {
+    position: relative;
+    border-bottom-color: color-mix(in srgb, var(--m3c-outline-variant) 58%, transparent);
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    top: 38px;
+    right: clamp(18px, 7vw, 88px);
+    width: clamp(96px, 15vw, 164px);
+    aspect-ratio: 1;
+    border-radius: 38% 62% 61% 39% / 42% 39% 61% 58%;
+    background:
+      radial-gradient(circle at 28% 25%, color-mix(in srgb, var(--m3c-tertiary-container) 88%, transparent), transparent 58%),
+      color-mix(in srgb, var(--m3c-primary-container) 28%, transparent);
+    filter: blur(1px);
+    opacity: .42;
+    transform: rotate(-17deg);
+    animation: home-orb-drift 12s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  .status-line {
+    width: fit-content;
+    max-width: 100%;
+    padding: 9px 13px;
+    margin-bottom: 19px;
+    border: 1px solid color-mix(in srgb, var(--m3c-outline-variant) 55%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--m3c-surface-container-low) 72%, transparent);
+    color: var(--m3c-on-surface-variant);
+    backdrop-filter: blur(14px) saturate(1.08);
+    -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  }
+  h1 {
+    max-width: 820px;
+    text-wrap: balance;
+    letter-spacing: -.06em;
+    line-height: 1.04;
+  }
+  .hero-meta {
+    max-width: 820px;
+    line-height: 1.65;
+    row-gap: 8px;
+  }
+  .section-heading {
+    min-width: 0;
+  }
+  .section-heading > div {
+    min-width: 0;
+  }
+  .subtle {
+    line-height: 1.5;
+    text-align: right;
+  }
+  .service-list :global(.m3-card),
+  .history-section > :global(.m3-card),
+  .incidents-section > :global(.m3-card),
+  .domain-section > :global(.m3-card) {
+    border-color: color-mix(in srgb, var(--m3c-outline-variant) 65%, transparent);
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--m3c-surface-container-lowest) 76%, transparent);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--m3c-shadow) 4%, transparent);
+    backdrop-filter: blur(18px) saturate(1.08);
+    -webkit-backdrop-filter: blur(18px) saturate(1.08);
+    transition: border-color .24s ease, background-color .24s ease, box-shadow .24s ease, transform .24s cubic-bezier(.2,.8,.2,1);
+  }
+  .service-list :global(.m3-card:hover) {
+    border-color: color-mix(in srgb, var(--m3c-primary) 26%, var(--m3c-outline-variant));
+    box-shadow: 0 14px 36px color-mix(in srgb, var(--m3c-primary) 7%, transparent);
+  }
+  .service-card {
+    padding: 8px 4px 4px;
+  }
+  .service-metrics {
+    border-top-color: color-mix(in srgb, var(--m3c-outline-variant) 58%, transparent);
+  }
+  .uptime-bar {
+    transition: transform .2s cubic-bezier(.2,.8,.2,1), filter .2s ease, opacity .2s ease;
+  }
+  .uptime-bar:hover {
+    transform: translateY(-1px) scaleY(1.08);
+  }
+  .area-chart {
+    border-color: color-mix(in srgb, var(--m3c-outline-variant) 55%, transparent) !important;
+    background: color-mix(in srgb, var(--m3c-surface-container-low) 54%, transparent) !important;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent);
+  }
+  .history-row {
+    padding-inline: 10px;
+    border-bottom-color: color-mix(in srgb, var(--m3c-outline-variant) 58%, transparent);
+    border-radius: 12px;
+    transition: background-color .2s ease;
+  }
+  .history-row:hover {
+    background: color-mix(in srgb, var(--m3c-surface-container-low) 72%, transparent);
+  }
+  .history-row:first-child { padding-top: 10px; }
+  .history-row:last-child { padding-bottom: 10px; }
+  .incident-row {
+    border-bottom-color: color-mix(in srgb, var(--m3c-outline-variant) 58%, transparent);
+    border-radius: 12px;
+    transition: background-color .2s ease;
+  }
+  .incident-row:hover {
+    background: color-mix(in srgb, var(--m3c-surface-container-low) 52%, transparent);
+  }
+  .domain-row {
+    padding: 6px;
+  }
+  footer {
+    border-top-color: color-mix(in srgb, var(--m3c-outline-variant) 58%, transparent);
+  }
+  footer a {
+    padding: 8px 11px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--m3c-surface-container-low) 75%, transparent);
+    transition: background-color .2s ease, color .2s ease;
+  }
+  footer a:hover {
+    background: var(--m3c-secondary-container);
+  }
+  @keyframes home-orb-drift {
+    from { transform: translate3d(0, 0, 0) rotate(-17deg); }
+    to { transform: translate3d(0, 10px, 0) rotate(7deg); }
+  }
+  @media (max-width: 560px) {
+    .shell { overflow: clip; padding-inline: 16px; }
+    .hero::after { top: 30px; right: 10px; opacity: .28; }
+    .status-line { margin-bottom: 16px; font-size: 12px; }
+    .service-list :global(.m3-card),
+    .history-section > :global(.m3-card),
+    .incidents-section > :global(.m3-card),
+    .domain-section > :global(.m3-card) { border-radius: 20px; }
+    .service-card { padding: 4px 1px; }
+    .history-row { padding-inline: 5px; }
+    .subtle { text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero::after { animation: none !important; }
+  }
+
   /* LayerChart fills its container; constrain it to the same rounded frame as the rest of the UI. */
   .area-chart{position:relative;display:block;min-width:0;width:100%;height:132px;box-sizing:border-box;overflow:hidden;border:1px solid color-mix(in srgb,var(--m3c-outline-variant) 75%,transparent);border-radius:12px;background:transparent;padding:0}
   .area-chart :global(svg){display:block;width:100%!important;height:100%!important;max-width:100%;overflow:hidden;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;background:transparent}
