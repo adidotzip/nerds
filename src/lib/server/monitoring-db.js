@@ -9,7 +9,7 @@ const RESET_MARKER = "history-reset-v1";
 let clientPromise;
 
 async function getDatabase() {
-  const uri = process.env.MONGODB_URI;
+  const uri = process.env.MONGODB_URI || process.env.MONGO_MONGODB_URI;
   if (!uri) throw new Error("MONGODB_URI is not configured");
 
   if (!clientPromise) {
