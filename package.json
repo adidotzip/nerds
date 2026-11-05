@@ -25,7 +25,7 @@
     "@ktibow/iconset-material-symbols": "^0.0.1764827375",
     "mongodb": "^6.20.0",
     "layerchart": "^2.8.1",
-    "@sveltejs/adapter-vercel": "^6.2.2"
+    "@sveltejs/adapter-vercel": "^7.0.2"
   },
   "devDependencies": {
     "svelte-check": "^4.7.6",
