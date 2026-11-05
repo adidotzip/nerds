@@ -1,5 +1,5 @@
 import { json } from "@sveltejs/kit";
-import config from "../../../../services.json";
+import config from "../../../../../services.json";
 import { saveChecks } from "$lib/server/monitoring-db.js";
 
 export const prerender = false;
