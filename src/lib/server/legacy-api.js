@@ -1,5 +1,5 @@
-import config from "../services.json";
-import { readChecks, readRecentChecks, saveChecks } from "../src/lib/server/monitoring-db.js";
+import config from "../../../services.json";
+import { readChecks, readRecentChecks, saveChecks } from "./monitoring-db.js";
 
 const MONITORING_ENDS_AT = Date.parse("2026-12-26T00:00:00.000Z");
 // Stop checking imreallyadi.space after its 65-day remaining monitoring window.
@@ -288,7 +288,7 @@ export default async function handler(req, res) {
       return send(res, 503, {
         serviceId: service.id, period, historyAvailable: false, history: [],
         uptime: { "24h": { percentage: null }, "7d": { percentage: null }, "30d": { percentage: null } },
-        message: "MongoDB history is unavailable. Configure MONGODB_URI in Netlify to enable history."
+        message: "MongoDB history is unavailable. Configure MONGODB_URI or MONGO_MONGODB_URI in Vercel to enable history."
       });
     }
   }
@@ -301,7 +301,7 @@ export default async function handler(req, res) {
         message: "Incidents are derived from real recorded failed and successful checks. Missing start times are not invented."
       });
     } catch {
-      return send(res, 503, { historyAvailable: false, period, incidents: [], message: "MongoDB history is unavailable. Configure MONGODB_URI in Netlify to enable incidents." });
+      return send(res, 503, { historyAvailable: false, period, incidents: [], message: "MongoDB history is unavailable. Configure MONGODB_URI or MONGO_MONGODB_URI in Vercel to enable incidents." });
     }
   }
   if (parts[1] === "domain-health" && parts.length === 2) {

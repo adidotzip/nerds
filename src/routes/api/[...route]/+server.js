@@ -1,4 +1,4 @@
-import handler from "../../../../api/[...route].js";
+import handler from "$lib/server/legacy-api.js";
 
 export const prerender = false;
 
