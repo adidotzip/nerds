@@ -14,7 +14,7 @@
     "add:animated-icons": "npx shadcn@latest add @animate-ui/icons-hugeicons-sun-medium @animate-ui/icons-hugeicons-moon-02",
     "add:animated-sun": "npx shadcn@latest add @animate-ui/icons-hugeicons-sun-medium",
     "add:animated-moon": "npx shadcn@latest add @animate-ui/icons-hugeicons-moon-02",
-    "deploy:netlify": "npm run build"
+    "deploy:vercel": "npm run build"
   },
   "dependencies": {
     "@sveltejs/kit": "^2.49.2",
@@ -23,9 +23,9 @@
     "svelte": "^5.40.0",
     "vite": "^7.3.6",
     "@ktibow/iconset-material-symbols": "^0.0.1764827375",
-    "@sveltejs/adapter-netlify": "^4.4.2",
     "mongodb": "^6.20.0",
-    "layerchart": "^2.8.1"
+    "layerchart": "^2.8.1",
+    "@sveltejs/adapter-vercel": "^6.2.2"
   },
   "devDependencies": {
     "svelte-check": "^4.7.6",
