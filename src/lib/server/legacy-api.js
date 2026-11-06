@@ -1,6 +1,34 @@
 import config from "../../../services.json";
 import { readChecks, readRecentChecks, saveChecks } from "./monitoring-db.js";
 
+const ARDUINO_DEVICE_ID = "arduino-r4-wifi";
+const ARDUINO_STALE_AFTER_MS = 3 * 60 * 1000;
+
+async function getArduinoFallback() {
+  const records = await readChecks({
+    serviceId: ARDUINO_DEVICE_ID,
+    since: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    limit: 1000
+  });
+  const latest = records.at(-1) ?? null;
+  if (!latest) return { available: false, stale: true, reason: "no_heartbeat" };
+
+  const ageMs = Date.now() - Date.parse(latest.timestamp);
+  if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > ARDUINO_STALE_AFTER_MS) {
+    return { available: false, stale: true, reason: "heartbeat_stale", lastSeen: latest.timestamp };
+  }
+
+  return {
+    available: true,
+    stale: false,
+    lastSeen: latest.timestamp,
+    ageMs,
+    status: latest.status,
+    latencyMs: latest.responseTimeMs,
+    statusCode: latest.statusCode
+  };
+}
+
 const MONITORING_ENDS_AT = Date.parse("2026-12-26T00:00:00.000Z");
 // Stop checking imreallyadi.space after its 65-day remaining monitoring window.
 const services = config.services.filter((service) =>
@@ -207,12 +235,58 @@ export default async function handler(req, res) {
         if (result.stale) return { ...result, status: "unknown", statusLabel: "Unknown" };
         return result;
       });
-      const result = summary(views);
+      let result = summary(views);
+      let arduinoFallback = { enabled: true, active: false, reason: "primary_checks_fresh" };
+
+      // The Arduino is a secondary source for the main adi.rest check only.
+      // Never use an expired heartbeat as evidence of current availability.
+      try {
+        const heartbeat = await getArduinoFallback();
+        const mainService = views.find((item) => item.id === "adi-rest");
+        if (heartbeat.available && mainService?.stale) {
+          Object.assign(mainService, {
+            status: heartbeat.status,
+            statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[heartbeat.status] || "Unknown",
+            latest: {
+              timestamp: heartbeat.lastSeen,
+              statusCode: heartbeat.statusCode,
+              responseTimeMs: heartbeat.latencyMs,
+              success: heartbeat.status !== "down",
+              errorCategory: heartbeat.status === "down" ? "probe" : null,
+              error: heartbeat.status === "down" ? "Arduino reported a failed check" : null
+            },
+            lastSuccessfulCheck: heartbeat.status === "down" ? null : heartbeat.lastSeen,
+            lastFailedCheck: heartbeat.status === "down" ? heartbeat.lastSeen : null,
+            stale: false,
+            source: "arduino-fallback"
+          });
+          result = summary(views);
+          arduinoFallback = {
+            enabled: true, active: true, source: "arduino-r4-wifi",
+            lastSeen: heartbeat.lastSeen, ageMs: heartbeat.ageMs
+          };
+        } else if (heartbeat.available) {
+          arduinoFallback = {
+            enabled: true, active: false, reason: "primary_checks_fresh",
+            lastSeen: heartbeat.lastSeen
+          };
+        } else {
+          arduinoFallback = {
+            enabled: true, active: false, reason: heartbeat.reason,
+            lastSeen: heartbeat.lastSeen || null
+          };
+        }
+      } catch (error) {
+        console.error("Arduino fallback status unavailable:", error?.message || error);
+        arduinoFallback = { enabled: true, active: false, reason: "heartbeat_unavailable" };
+      }
+
       return send(res, 200, {
         ...result,
         updatedAt: views.map((item) => item.latest?.timestamp).filter(Boolean).sort().at(-1) || null,
         liveOnly: false,
         historyAvailable: true,
+        arduinoFallback,
         services: views
       });
     } catch {
