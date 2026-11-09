@@ -38,6 +38,8 @@
     .map((item) => ({ timestamp: new Date(item.timestamp), responseTimeMs: item.responseTimeMs }));
   const selectedService = () => data?.services?.find((service) => service.id === selectedSite) || data?.services?.[0];
   const selectedHistory = () => histories[selectedSite];
+  let activeHistory = $derived(selectedHistory());
+  let series = $derived(chartData(activeHistory?.history));
   const bars = (history) => {
     const list = history || [];
     const bucketCount = 60;
@@ -185,8 +187,6 @@
           {/each}
         </ConnectedButtons>
       </div>
-      {@const activeHistory = selectedHistory()}
-      {@const series = chartData(activeHistory?.history)}
       {#if series.length > 1}
         <div class="area-chart">
           <LineChart
