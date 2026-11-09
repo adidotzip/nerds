@@ -1,29 +1,71 @@
-# adi.rest Status
+# Nerds
 
-A minimalist SvelteKit status page for adi.rest, deployed to Vercel. MongoDB stores real monitoring checks; no notifications or alerting integrations are used.
+Nerds is the SvelteKit status and monitoring app for [adi.rest](https://adi.rest/). It displays live service health, recorded uptime, response-time history, incidents, and the Arduino UNO R4 WiFi backup probe.
 
-## Monitoring rules
+## Stack
 
-The configured URLs in \`services.json\` are checked server-side. Checks measure elapsed response time, validate configured HTTP status ranges, apply per-service latency thresholds and redirect policy, and categorize DNS, TLS, timeout, connection, HTTP/server and API-payload failures separately.
+- SvelteKit 2 and Svelte 5
+- Vite 7 with the Vercel adapter
+- Material 3 Svelte components and LayerChart
+- MongoDB for persistent check history
+- Arduino UNO R4 WiFi for an independent 60-second probe
 
-The Lyrics API monitor targets \`https://lyrics.adi.rest/api/health\` rather than treating the root API router as proof of health. The documented health endpoint returns \`ok: true\`, \`name: Adi Lyrics\`, a version, and provider information. The checker validates its JSON content type, object response, required fields and expected \`ok\`/name values. Other service checks target their exact configured URLs.
+## Local development
 
-## Monitoring history and MongoDB
+Requires Node.js 22.
 
-Set \`MONGODB_URI\` in Vercel's environment variables to a MongoDB connection string. Optionally set \`MONGODB_DB\`; the default database name is \`adi_rest_status\`. Never commit the connection string to the repository. The app records real check results when its status endpoints are requested and derives history, uptime, and incidents from those records. If MongoDB is missing or unavailable, live checks still respond, but history is reported as unavailable.
+```sh
+npm install
+npm run dev
+```
 
-On the first database access, a one-time cleanup removes prior records outside the last 24 hours and non-outage records, preserving only genuine outage checks from the last 24 hours. It does not create fake or backdated checks. A currently failing service without an earlier recorded failure is shown as down from its first observed failure; its earlier start time and uptime are unknown. Fresh checks are then stored normally. Check records expire after 30 days.
+Run the project checks and production build before making changes:
 
-## Arduino R4 WiFi probe
+```sh
+npm run check
+npm run build
+npm run preview
+```
 
-The Arduino checks \`adi.rest\` every 60 seconds and posts the result to \`https://ping.adi.rest/api/arduino\`. Configure \`ARDUINO_PING_TOKEN\` as a sensitive Vercel environment variable and use the same value only in the local, git-ignored Arduino secrets header. See [docs/arduino-pinger.md](docs/arduino-pinger.md) for setup, DNS records, and the sketch.
+## Configuration
 
-## Scheduled monitoring
+Set these as environment variables in the hosting project. Never commit their values.
 
-Vercel Cron invokes \`/api/monitor/run\` with \`CRON_SECRET\`. The connected Hobby team is limited to one cron execution per day; the Arduino remains the minute-by-minute external probe. On Pro or Enterprise, change the schedule in \`vercel.json\` to \`* * * * *\` for minute-by-minute server checks.
+| Variable | Purpose |
+| --- | --- |
+| `MONGODB_URI` | MongoDB connection string for monitoring history |
+| `MONGODB_DB` | Optional database name; defaults to `adi_rest_status` |
+| `ARDUINO_PING_TOKEN` | Authenticates the Arduino probe |
+| `CRON_SECRET` | Authenticates scheduled monitoring requests |
 
-## Deploy to Vercel
+Without MongoDB, live checks can still run, but historical data and incident history are unavailable.
 
-The app uses \`@sveltejs/adapter-vercel\`. Vercel detects SvelteKit automatically. Install dependencies with \`npm install\`, run \`npm run check\` and \`npm run build\`, then deploy through the connected Git repository.
+## Monitored services
 
-No notifications, alerts, email, Discord or Telegram integrations are included.
+The configured services live in `services.json`. Each entry defines its URL, expected HTTP status range, timeout, latency threshold, and optional response-payload validation.
+
+The Lyrics API monitor checks `https://lyrics.adi.rest/api/health` and validates the health response rather than treating the API root as proof of health.
+
+## Monitoring API
+
+The SvelteKit API routes are under `src/routes/api/`. The catch-all compatibility route delegates to `src/lib/server/legacy-api.js`.
+
+The status page reads the latest persisted results from `/api/current-status`. Live checks, history, uptime, incidents, and domain-health data are exposed through the API routes.
+
+MongoDB history is based on actual observations only. The initial history cleanup preserves only real outage records from the last 24 hours; it does not synthesize or backdate checks. Check records have a 30-day TTL.
+
+## Arduino backup probe
+
+The UNO R4 WiFi checks `https://adi.rest/` every 60 seconds and reports to `https://ping.adi.rest/api/arduino`. The Arduino is a secondary source for the main website's status when primary checks are stale; stale heartbeats are never treated as current health.
+
+See [docs/arduino-pinger.md](docs/arduino-pinger.md) for board setup, Wi-Fi configuration, and deployment environment variables. Copy `arduino/nerds-pinger/arduino_secrets.h.example` to `arduino_secrets.h` locally and fill in credentials. The real secrets file is ignored by Git.
+
+## Scheduled checks
+
+Vercel Cron invokes `/api/monitor/run` using `CRON_SECRET`. The schedule is configured in `vercel.json`. The Arduino remains the independent minute-by-minute probe.
+
+## Deployment
+
+The app uses `@sveltejs/adapter-vercel` and is configured for the Vercel project `nerds`. Deployments are currently paused in Vercel; the GitHub repository remains unchanged apart from reviewed cleanup commits.
+
+No notification or alerting integrations are included.
