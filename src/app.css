@@ -3,6 +3,27 @@
 
 @font-face {
   font-family: "Google Sans Rounded";
+  src: url("/fonts/GoogleSansRounded-Thin.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Google Sans Rounded";
+  src: url("/fonts/GoogleSansRounded-ExtraLight.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 200;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Google Sans Rounded";
+  src: url("/fonts/GoogleSansRounded-Light.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Google Sans Rounded";
   src: url("/fonts/GoogleSansRounded-Regular.ttf") format("truetype");
   font-style: normal;
   font-weight: 400;
