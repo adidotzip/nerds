@@ -31,7 +31,7 @@
   const time = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Awaiting first check";
   const latency = (value) => Number.isFinite(value) ? Math.round(value) + " ms" : "—";
   const percent = (value) => Number.isFinite(value) ? value.toFixed(2) + "%" : "Collecting data";
-  const points = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs) && item.success);
+  const points = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs));
   const chartPoints = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs)).map((item, index) => ({
     index: index + 1,
     timestamp: new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
