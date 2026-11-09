@@ -126,8 +126,8 @@
 </script>
 
 <svelte:head>
-  <title>Status · adi.rest</title>
-  <meta name="description" content="Live service status, historical uptime and response-time graphs for adi.rest." />
+  <title>nerds · Service status</title>
+  <meta name="description" content="Live service status, historical uptime and response-time graphs." />
 </svelte:head>
 
 <div class="boot-screen" class:boot-screen-hidden={!initialLoading} role="status" aria-live="polite" aria-hidden={!initialLoading}>
@@ -138,7 +138,7 @@
 
 <div class:booting={initialLoading} class="shell">
   <header class="topbar">
-    <a class="brand" href="/" aria-label="adi.rest status home">adi.rest</a>
+    <a class="brand" href="/" aria-label="nerds status home">nerds</a>
     <div class="top-actions">
       <button class="theme-toggle" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Switch to light theme" : "Switch to dark theme"}>{#if dark}<svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2 M12 20v2 M4.93 4.93l1.42 1.42 M17.65 17.65l1.42 1.42 M2 12h2 M20 12h2 M4.93 19.07l1.42-1.42 M17.65 6.35l1.42-1.42" stroke-linecap="round"/></svg>{:else}<svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}</button>
     </div>
@@ -148,7 +148,7 @@
     <section class="hero">
       <div class="status-line"><span class="status-dot {data?.status || 'unknown'}"></span><span>{statusText[data?.status || "unknown"]}</span></div>
       <h1>{data?.status === "up" ? "Everything is running smoothly." : data?.status === "down" || data?.status === "partial" ? "We're investigating a service disruption." : data?.status === "degraded" ? "Some services are running slowly." : "Service status at a glance."}</h1>
-      <div class="hero-meta"><span>{failed ? "Live checks are unavailable. Configured services remain listed as Unknown." : data?.liveOnly ? "Showing fresh live checks. Historical data is currently unavailable." : data?.configurationFallback ? "Showing configured services while live results are unavailable." : "Monitoring the services that power adi.rest."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
+      <div class="hero-meta"><span>{failed ? "Live checks are unavailable. Configured services remain listed as Unknown." : data?.liveOnly ? "Showing fresh live checks. Historical data is currently unavailable." : data?.configurationFallback ? "Showing configured services while live results are unavailable." : "Monitoring the services that power nerds."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
     </section>
 
     
@@ -209,7 +209,7 @@
 
 
     <section class="section history-section">
-      <div class="section-heading"><div><p class="eyebrow">HISTORICAL DATA</p><h2>Uptime & response times</h2></div>
+      <div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Uptime & response times</h2></div>
         <ConnectedButtons>
           <Button variant={selected === "24h" ? "filled" : "tonal"} square label>
             <input type="radio" name="history-period" value="24h" checked={selected === "24h"} onchange={() => changePeriod("24h")} disabled={refreshing} />24h
@@ -269,7 +269,7 @@
     </section>
   </main>
 
-  <footer><span class="footer-brand">adi.rest</span><span>Live checks. Historical data is shown only when available.</span><a href="/api/status">Status API ↗</a></footer>
+  <footer><span class="footer-brand">nerds</span><span>Live checks. Historical data is shown only when available.</span><a href="/api/status">Status API ↗</a></footer>
 </div>
 
 <style>
@@ -388,4 +388,48 @@
     .incident-row>div{grid-column:2;grid-row:1}
     .incident-row time{grid-column:2;grid-row:2;margin:0;padding-top:0;text-align:left;white-space:normal;max-width:none}
   }
+
+  /* Nerds identity and blog-inspired shell */
+  .shell{width:min(100% - 40px,760px);padding:0;margin-inline:auto}
+  .topbar{min-height:76px;border-bottom:1px solid var(--m3c-outline-variant)}
+  .brand{font-size:16px;font-weight:700;letter-spacing:-.035em}
+  .hero{padding:52px 0 38px}
+  h1{font-size:clamp(34px,5.4vw,52px);font-weight:600;letter-spacing:-.045em;line-height:1.12}
+  .section{padding-top:36px}
+  .section-heading{margin-bottom:14px}
+  h2{font-size:22px;font-weight:600;letter-spacing:-.035em}
+  .eyebrow{letter-spacing:.11em}
+  .service-list{gap:14px}
+  .service-list :global(.m3-card),
+  .history-section :global(.m3-card),
+  .incidents-section :global(.m3-card),
+  .domain-section :global(.m3-card){border:1px solid var(--m3c-outline-variant)!important;border-radius:20px!important;background:var(--m3c-surface-container-low)!important}
+  .service-card{padding:20px!important;border-radius:20px}
+  .service-card:hover{background:var(--m3c-surface-container-low)}
+  .uptime-bars{gap:3px}
+  .uptime-bar{border-radius:999px}
+  .area-chart{border-radius:16px!important;border-color:var(--m3c-outline-variant)!important;background:var(--m3c-surface-container-low)!important}
+  .history-overview{padding:6px 20px}
+  .history-row{padding:17px 0;border-bottom:1px solid var(--m3c-outline-variant)}
+  .history-row:last-child{border-bottom:0}
+  .incident-list{padding:0 20px}
+  .incident-row{border-bottom:1px solid var(--m3c-outline-variant)}
+  .incident-row:last-child{border-bottom:0}
+  .domain-section .domain-row{padding:20px}
+  .theme-toggle{border-radius:14px;width:40px;height:40px;background:var(--m3c-primary-container);border-color:transparent;color:var(--m3c-on-primary-container)}
+  .theme-toggle:hover{background:var(--m3c-primary-container-subtle)}
+  .hero-meta{font-size:13px;line-height:1.6}
+  .status-line{font-size:13px}
+  footer{min-height:76px;margin-top:48px}
+  .footer-brand{font-size:15px;letter-spacing:-.035em}
+  @media(max-width:620px){
+    .shell{width:min(100% - 32px,760px);padding:0}
+    .hero{padding-block:40px 32px}
+    .section{padding-top:30px}
+    .service-card{padding:16px!important}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .shell,.service-card,.uptime-bar,.graph-line,.chart-area-line{animation:none!important;transition:none!important}
+  }
+
 </style>
