@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
-  import { Button, Card, Chip, LoadingIndicator, ConnectedButtons } from "m3-svelte";
+  import { Button, Card, Chip, ConnectedButtons } from "m3-svelte";
+  import CircularProgress from "$lib/components/CircularProgress.svelte";
   import { AreaChart } from "layerchart";
 
 
@@ -130,8 +131,7 @@
 </svelte:head>
 
 <div class="boot-screen" class:boot-screen-hidden={!initialLoading} role="status" aria-live="polite" aria-hidden={!initialLoading}>
-  <span class="boot-brand">adi.rest</span>
-  <LoadingIndicator />
+  <CircularProgress aria-label="Loading, wavy" wavy indeterminate />
   <p>Connecting to live monitoring</p>
   <span class="boot-caption">Checking services and recent results</span>
 </div>
@@ -280,13 +280,11 @@
   .shell{opacity:1;transition:opacity .38s cubic-bezier(.2,.8,.2,1)}
   .shell.booting{opacity:0;visibility:hidden}
   .boot-screen-hidden{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .38s cubic-bezier(.2,.8,.2,1),visibility 0s linear .38s}
-  .boot-brand{font-size:clamp(32px,6vw,44px);font-weight:700;letter-spacing:-.07em;animation:boot-arrive .65s cubic-bezier(.2,.8,.2,1) both}
   .boot-screen :global(*){transition:color .3s ease,background-color .3s ease}
   .boot-screen p{margin:0;font-size:14px;font-weight:600;letter-spacing:-.01em}
   .boot-caption{font-size:12px;color:var(--m3c-on-surface-variant);animation:soft-pulse 1.8s ease-in-out infinite}
   .booting{visibility:hidden;pointer-events:none}
   .boot-screen :global(.m3-loading-indicator){display:initial}
-  @keyframes boot-arrive{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes soft-pulse{0%,100%{opacity:.5}50%{opacity:1}}
   .theme-toggle{overflow:hidden;flex-shrink:0;transition:transform .2s ease,background-color .24s ease,border-color .24s ease,color .24s ease}
   .theme-toggle :global(svg){transition:opacity .24s ease}
