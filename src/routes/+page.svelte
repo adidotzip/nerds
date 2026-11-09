@@ -2,7 +2,6 @@
   import { onMount } from "svelte";
   import { Button, Card, Chip, ConnectedButtons } from "m3-svelte";
   import CircularProgress from "$lib/components/CircularProgress.svelte";
-  import { AreaChart } from "layerchart";
 
 
   let data = $state(null);
@@ -148,7 +147,7 @@
     <section class="hero">
       <div class="status-line"><span class="status-dot {data?.status || 'unknown'}"></span><span>{statusText[data?.status || "unknown"]}</span></div>
       <h1>{data?.status === "up" ? "Everything is running smoothly." : data?.status === "down" || data?.status === "partial" ? "We're investigating a service disruption." : data?.status === "degraded" ? "Some services are running slowly." : "Service status at a glance."}</h1>
-      <div class="hero-meta"><span>{failed ? "Live checks are unavailable. Configured services remain listed as Unknown." : data?.liveOnly ? "Showing fresh live checks. Historical data is currently unavailable." : data?.configurationFallback ? "Showing configured services while live results are unavailable." : "Monitoring the services that power nerds."}</span><span class="meta-divider"></span><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
+      <div class="hero-meta"><span>Last checked {time(data?.updatedAt)}</span><Button variant="text" size="s" onclick={refresh} disabled={refreshing}>{refreshing ? "Updating…" : "Refresh"}</Button></div>
     </section>
 
     
@@ -171,70 +170,15 @@
                 </div>
                 <div class="service-metrics">
                   <div><span class="metric-label">Response time</span><strong>{latency(service.latest?.responseTimeMs)}</strong></div>
-                  <div><span class="metric-label">HTTP status</span><strong>{service.latest?.statusCode ?? "—"}</strong></div>
                   <div><span class="metric-label">24h uptime</span><strong>{percent(historyData?.uptime?.["24h"]?.percentage)}</strong></div>
                 </div>
-                <div class="uptime-block">
-                  <div class="uptime-title"><span>Uptime history</span><span>{historyData?.history?.length ? historyData.history.length + " checks" : "Collecting data"}</span></div>
-                  <div class="uptime-bars" aria-label="Historical check results">
-                    {#each bars(historyData?.history) as bar, i}
-                      <span class="uptime-bar {bar.status}" title={bar.count ? `${bar.status}: ${bar.count} recorded check(s), ${time(bar.from)} – ${time(bar.to)}` : `Unknown: no recorded checks from ${time(bar.from)} to ${time(bar.to)}`} aria-label={bar.count ? `${bar.status}, ${bar.count} recorded checks` : "Unknown, no recorded checks"}></span>
-                    {/each}
-                  </div>
-                  <div class="bar-labels"><span>{selected === "24h" ? "24 hours ago" : selected === "7d" ? "7 days ago" : "30 days ago"}</span><span>Now</span></div>
-                </div>
-                <div class="latency-graph">
-                  <div class="uptime-title"><span>Response time</span><span>{historyData?.history?.length ? "milliseconds" : "No history yet"}</span></div>
-                  {#if points(historyData?.history).length > 1}
-                    <div class="area-chart" role="img" aria-label={"Area chart of recorded response times for " + service.name}>
-                      <AreaChart
-                        data={chartPoints(historyData.history)}
-                        x="index"
-                        y="responseTimeMs"
-                        height={130}
-                      />
-                    </div>
-                    <div class="chart-axis-labels"><span>Earlier</span><span>Most recent checks</span></div>
-                  {:else}
-                    <div class="graph-empty">A graph will appear as real monitoring history accumulates.</div>
-                  {/if}
-                </div>
-                <div class="service-foot"><span>Last checked {time(service.latest?.timestamp)}</span><span>Last successful {time(service.lastSuccessfulCheck)}</span>{#if service.lastFailedCheck}<span>Last failed {time(service.lastFailedCheck)}</span>{/if}</div>
+                <div class="service-foot"><span>Last checked {time(service.latest?.timestamp)}</span></div>
+
               </article>
             </Card>
           {/each}
         {/if}
       </div>
-    </section>
-
-
-    <section class="section history-section">
-      <div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Uptime & response times</h2></div>
-        <ConnectedButtons>
-          <Button variant={selected === "24h" ? "filled" : "tonal"} square label>
-            <input type="radio" name="history-period" value="24h" checked={selected === "24h"} onchange={() => changePeriod("24h")} disabled={refreshing} />24h
-          </Button>
-          <Button variant={selected === "7d" ? "filled" : "tonal"} square label>
-            <input type="radio" name="history-period" value="7d" checked={selected === "7d"} onchange={() => changePeriod("7d")} disabled={refreshing} />7 days
-          </Button>
-          <Button variant={selected === "30d" ? "filled" : "tonal"} square label>
-            <input type="radio" name="history-period" value="30d" checked={selected === "30d"} onchange={() => changePeriod("30d")} disabled={refreshing} />30 days
-          </Button>
-        </ConnectedButtons>
-      </div>
-      <Card variant="outlined">
-        <div class="history-overview">
-          {#each (data?.services || []) as service (service.id)}
-            <div class="history-row">
-              <div><strong>{service.name}</strong><span>{histories[service.id]?.history?.length || 0} recorded checks</span></div>
-              <div class="history-stat"><span>Uptime</span><strong>{percent(histories[service.id]?.uptime?.[selected]?.percentage)}</strong></div>
-              <div class="history-stat"><span>Average latency</span><strong>{latency(histories[service.id]?.uptime?.[selected]?.averageResponseTimeMs)}</strong></div>
-            </div>
-          {/each}
-          {#if !data?.services?.length || data?.historyAvailable === false}<div class="empty">{data?.historyAvailable === false ? "Live checks are working, but saved history is unavailable. Uptime percentages are not guessed." : "Historical statistics appear after monitoring records are collected."}</div>{/if}
-        </div>
-        <p class="history-note">Only recorded checks count toward uptime. Missing intervals are unknown, not successful. When live-only mode is active, historical uptime cannot be verified.</p>
-      </Card>
     </section>
 
 
@@ -258,18 +202,9 @@
     </section>
 
 
-    <section class="section domain-section">
-      <div class="section-heading"><div><p class="eyebrow">REGISTRATION</p><h2>imreallyadi.space</h2></div><Chip variant="general" disabled>Domain health</Chip></div>
-      <Card variant="outlined">
-        <div class="domain-row">
-          <div class="domain-copy"><h3>Domain expiration</h3><p>imreallyadi.space expires on December 25, 2026.</p></div>
-          <div class="countdown"><strong>{Math.max(0, daysToExpiration())}</strong><span>{daysToExpiration() < 0 ? "days past date" : "days remaining"}</span></div>
-        </div>
-      </Card>
-    </section>
   </main>
 
-  <footer><span class="footer-brand">nerds</span><span>Live checks. Historical data is shown only when available.</span><a href="/api/status">Status API ↗</a></footer>
+  <footer><span class="footer-brand">nerds</span><a href="/api/status">Status API ↗</a></footer>
 </div>
 
 <style>
