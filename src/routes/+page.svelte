@@ -204,7 +204,7 @@
 
   </main>
 
-  <footer><span class="footer-brand">nerds</span><a href="/api/status">Status API ↗</a></footer>
+  <footer><span class="footer-brand">nerds</span><nav class="footer-links" aria-label="Legal"><a href="https://blog.adi.rest/posts/policy/privacy/">Privacy</a><a href="https://blog.adi.rest/posts/policy/tos/">Terms of Service</a><a href="/api/status">Status API ↗</a></nav></footer>
 </div>
 
 <style>
