@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { Button, Card, ConnectedButtons } from "m3-svelte";
-  import { LineChart } from "layerchart";
+  import { AreaChart } from "layerchart";
   import CircularProgress from "$lib/components/CircularProgress.svelte";
 
 
@@ -189,15 +189,25 @@
       </div>
       {#if series.length > 1}
         <div class="area-chart">
-          <LineChart
+          <AreaChart
             data={series}
             x="timestamp"
-            y="responseTimeMs"
-            axis="x"
-            curve="monotone"
+            axes="x"
+            series={[
+              {
+                key: "responseTimeMs",
+                label: "Response time",
+                color: "var(--m3c-primary)"
+              }
+            ]}
             props={{
-              xAxis: { format: (value) => new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) },
-              yAxis: { format: (value) => Math.round(value) + " ms" }
+              area: {
+                fillOpacity: 0.22,
+                motion: "tween"
+              },
+              xAxis: {
+                format: (value) => new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+              }
             }}
           />
         </div>
