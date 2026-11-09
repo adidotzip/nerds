@@ -183,6 +183,30 @@
     </section>
 
 
+    <section class="section history-section">
+      <div class="section-heading">
+        <div><p class="eyebrow">HISTORICAL DATA</p><h2>Response time</h2></div>
+        <div class="period-switch" aria-label="History period">
+          {#each ["24h", "7d", "30d"] as period}
+            <button class:active={selected === period} aria-pressed={selected === period} onclick={() => changePeriod(period)}>{period}</button>
+          {/each}
+        </div>
+      </div>
+      {#if histories["adi-rest"]?.history?.length > 1}
+        <div class="area-chart">
+          <svg viewBox="0 0 560 132" preserveAspectRatio="none" role="img" aria-label="Recorded response time history for adi.rest">
+            <path class="chart-grid" d="M0 32H560 M0 66H560 M0 100H560"/>
+            <path class="chart-area-fill" d={areaPathFor(histories["adi-rest"].history,560,120)} />
+            <path class="chart-area-line" d={pathFor(histories["adi-rest"].history,560,120)} />
+          </svg>
+        </div>
+        <div class="chart-axis-labels"><span>{time(histories["adi-rest"].history[0]?.timestamp)}</span><span>{time(histories["adi-rest"].history.at(-1)?.timestamp)}</span></div>
+      {:else}
+        <div class="chart-empty">Not enough recorded checks to draw a graph yet.</div>
+      {/if}
+      <p class="data-note">{histories["adi-rest"]?.message || "Graph uses actual timestamped checks from MongoDB. Missing intervals are not treated as uptime."}</p>
+    </section>
+
     <section class="section incidents-section">
       <div class="section-heading"><div><p class="eyebrow">EVENT LOG</p><h2>Recent incidents</h2></div><span class="subtle">Recorded check failures</span></div>
       <Card variant="outlined">
@@ -526,4 +550,16 @@
     .service-card{padding:15px!important}
     .service-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   }
-</style>
+  .history-section{padding-top:34px}
+  .area-chart{position:relative;display:block;min-width:0;width:100%;height:132px;box-sizing:border-box;overflow:hidden;border:1px solid color-mix(in srgb,var(--m3c-outline-variant) 75%,transparent);border-radius:16px;background:transparent;padding:0}
+  .area-chart svg{display:block;width:100%;height:100%;overflow:hidden;border:0;outline:0;box-shadow:none;background:transparent}
+  .chart-grid{fill:none;stroke:color-mix(in srgb,var(--m3c-outline-variant) 38%,transparent);stroke-width:1;stroke-dasharray:3 6;vector-effect:non-scaling-stroke}
+  .chart-area-fill{fill:color-mix(in srgb,var(--m3c-primary) 13%,transparent);stroke:none}
+  .chart-area-line{fill:none;stroke:var(--m3c-primary);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+  .chart-axis-labels{display:flex;justify-content:space-between;gap:12px;margin-top:6px;color:var(--m3c-on-surface-variant);font-size:10px}
+  .chart-empty{height:88px;display:flex;align-items:center;color:var(--m3c-on-surface-variant);font-size:12px}
+  .data-note{margin:10px 2px 0;color:var(--m3c-on-surface-variant);font-size:11px;line-height:1.6}
+  .period-switch{display:flex;gap:3px;padding:3px;border:1px solid var(--m3c-outline-variant);border-radius:999px}
+  .period-switch button{border:0;background:transparent;color:var(--m3c-on-surface-variant);padding:7px 11px;border-radius:999px;font-size:11px;cursor:pointer}
+  .period-switch button.active{background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container)}
+  </style>
