@@ -140,7 +140,6 @@
   <header class="topbar">
     <a class="brand" href="/" aria-label="adi.rest status home">adi.rest</a>
     <div class="top-actions">
-      <span class="live-indicator"><span></span> Live monitoring</span>
       <button class="theme-toggle" onclick={toggleTheme} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Switch to light theme" : "Switch to dark theme"}>{#if dark}<svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2 M12 20v2 M4.93 4.93l1.42 1.42 M17.65 17.65l1.42 1.42 M2 12h2 M20 12h2 M4.93 19.07l1.42-1.42 M17.65 6.35l1.42-1.42" stroke-linecap="round"/></svg>{:else}<svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" stroke-linecap="round" stroke-linejoin="round"/></svg>{/if}</button>
     </div>
   </header>
