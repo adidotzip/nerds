@@ -151,29 +151,7 @@
     </section>
 
     
-    <section class="section history-section">
-      <div class="section-heading">
-        <div><p class="eyebrow">HISTORICAL DATA</p><h2>Response time</h2></div>
-        <div class="period-switch" aria-label="History period">
-          {#each ["24h", "7d", "30d"] as period}
-            <button class:active={selected === period} aria-pressed={selected === period} onclick={() => changePeriod(period)}>{period}</button>
-          {/each}
-        </div>
-      </div>
-      {#if histories["adi-rest"]?.history?.length > 1}
-        <div class="area-chart">
-          <svg viewBox="0 0 560 132" preserveAspectRatio="none" role="img" aria-label="Recorded response time history for adi.rest">
-            <path class="chart-grid" d="M0 32H560 M0 66H560 M0 100H560"/>
-            <path class="chart-area-fill" d={areaPathFor(histories["adi-rest"].history,560,120)} />
-            <path class="chart-area-line" d={pathFor(histories["adi-rest"].history,560,120)} />
-          </svg>
-        </div>
-        <div class="chart-axis-labels"><span>{time(histories["adi-rest"].history[0]?.timestamp)}</span><span>{time(histories["adi-rest"].history.at(-1)?.timestamp)}</span></div>
-      {:else}
-        <div class="chart-empty">Not enough recorded checks to draw a graph yet.</div>
-      {/if}
-      <p class="data-note">{histories["adi-rest"]?.message || "Graph uses actual timestamped checks from MongoDB. Missing intervals are not treated as uptime."}</p>
-    </section>
+    
 
     <section class="section summary-section">
       <div class="section-heading"><div><h2>Service health</h2></div><span class="subtle">{data?.services?.length ?? 0} monitored services</span></div>
