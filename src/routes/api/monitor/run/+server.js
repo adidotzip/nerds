@@ -1,9 +1,9 @@
 import { json } from "@sveltejs/kit";
-import config from "../../../../../services.json";
+import servicesConfig from "../../../../../services.json";
 import { saveChecks } from "$lib/server/monitoring-db.js";
 
 export const prerender = false;
-export const maxDuration = 60;
+export const config = { maxDuration: 60 };
 
 function validateJson(service, response, payload) {
   const contentType = response.headers.get("content-type") || "";
@@ -83,7 +83,7 @@ async function check(service) {
 
   const responseTimeMs = Math.round((performance.now() - started) * 100) / 100;
   const success = error === null;
-  const status = !success ? "down" : responseTimeMs >= (service.degradedMs || config.latencyDegradedMs || 1500) ? "degraded" : "up";
+  const status = !success ? "down" : responseTimeMs >= (service.degradedMs || servicesConfig.latencyDegradedMs || 1500) ? "degraded" : "up";
   return {
     serviceId: service.id, serviceName: service.name, serviceUrl: service.url, finalUrl,
     timestamp, statusCode, responseTimeMs, success, status, errorCategory, error
@@ -96,7 +96,7 @@ export async function GET({ request }) {
     return json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  const results = await Promise.all(config.services.map(check));
+  const results = await Promise.all(servicesConfig.services.map(check));
   try {
     await saveChecks(results);
   } catch (error) {
