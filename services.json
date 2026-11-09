@@ -1,6 +1,6 @@
 {
   "latencyDegradedMs": 1500,
-  "staleAfterMs": 180000,
+  "staleAfterMs": 7200000,
   "consecutiveFailuresToDown": 3,
   "consecutiveSuccessesToRecover": 2,
   "services": [
