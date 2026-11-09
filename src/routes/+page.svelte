@@ -492,4 +492,18 @@
     .shell,.service-card,.uptime-bar,.graph-line,.chart-area-line{animation:none!important;transition:none!important}
   }
 
+
+  /* Keep the status page focused: compact service cards and a quiet incident log. */
+  .section{padding-top:28px}
+  .section-heading{margin-bottom:12px}
+  .service-list{gap:10px}
+  .service-card{padding:17px!important}
+  .service-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+  .service-foot{margin-top:14px;padding-top:10px}
+  .incidents-section{padding-top:32px}
+  footer{margin-top:36px}
+  @media(max-width:440px){
+    .service-card{padding:15px!important}
+    .service-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  }
 </style>
