@@ -389,44 +389,169 @@
     .incident-row time{grid-column:2;grid-row:2;margin:0;padding-top:0;text-align:left;white-space:normal;max-width:none}
   }
 
-  /* Nerds identity and blog-inspired shell */
-  .shell{width:min(100% - 40px,760px);padding:0;margin-inline:auto}
-  .topbar{min-height:76px;border-bottom:1px solid var(--m3c-outline-variant)}
-  .brand{font-size:16px;font-weight:700;letter-spacing:-.035em}
-  .hero{padding:52px 0 38px}
-  h1{font-size:clamp(34px,5.4vw,52px);font-weight:600;letter-spacing:-.045em;line-height:1.12}
-  .section{padding-top:36px}
-  .section-heading{margin-bottom:14px}
-  h2{font-size:22px;font-weight:600;letter-spacing:-.035em}
-  .eyebrow{letter-spacing:.11em}
-  .service-list{gap:14px}
+  /* Blog-matched layout. Keep Nerds' existing colour tokens unchanged. */
+  .shell{
+    width:min(100% - 40px,760px);
+    margin-inline:auto;
+    padding:0;
+    animation:page-enter .28s ease both;
+  }
+  .topbar{
+    min-height:76px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid var(--m3c-outline-variant);
+  }
+  .brand{
+    display:inline-flex;
+    align-items:center;
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:-.035em;
+  }
+  .top-actions{display:flex;align-items:center;gap:12px}
+  main{width:100%;min-height:calc(100vh - 76px);padding:52px 0 0}
+  .hero{
+    padding:0 0 30px;
+    border-bottom:0;
+  }
+  .status-line{margin-bottom:16px;font-size:13px}
+  h1{
+    max-width:700px;
+    margin:0;
+    font-size:clamp(32px,5vw,42px);
+    font-weight:600;
+    letter-spacing:-.045em;
+    line-height:1.12;
+    text-wrap:balance;
+  }
+  .hero-meta{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:9px;
+    margin-top:18px;
+    font-size:13px;
+    line-height:1.6;
+  }
+  .section{padding-top:34px}
+  .section-heading{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:14px;
+  }
+  .section-heading>div{min-width:0}
+  h2{
+    margin:0;
+    font-size:22px;
+    font-weight:600;
+    letter-spacing:-.035em;
+    line-height:1.25;
+  }
+  .eyebrow{margin:0 0 6px;font-size:11px;letter-spacing:.11em}
+  .subtle{font-size:12px}
+  .service-list{display:grid;gap:14px}
   .service-list :global(.m3-card),
   .history-section :global(.m3-card),
   .incidents-section :global(.m3-card),
-  .domain-section :global(.m3-card){border:1px solid var(--m3c-outline-variant)!important;border-radius:20px!important;background:var(--m3c-surface-container-low)!important}
-  .service-card{padding:20px!important;border-radius:20px}
-  .service-card:hover{background:var(--m3c-surface-container-low)}
-  .uptime-bars{gap:3px}
+  .domain-section :global(.m3-card){
+    overflow:hidden;
+    border:1px solid var(--m3c-outline-variant)!important;
+    border-radius:20px!important;
+    box-shadow:none!important;
+  }
+  .service-card{
+    padding:20px!important;
+    border-radius:20px;
+  }
+  .service-name-line{gap:9px}
+  .service-name-line h3{font-size:17px;font-weight:600;letter-spacing:-.02em}
+  .service-description{margin:6px 0 5px;font-size:13px;line-height:1.55}
+  .service-url{font-size:12px}
+  .service-metrics{gap:18px;margin-top:20px}
+  .metric-label{font-size:11px}
+  .service-metrics strong{font-size:18px;font-weight:600;letter-spacing:-.025em}
+  .uptime-block,.latency-graph{margin-top:22px}
+  .uptime-title{font-size:12px}
+  .uptime-bars{height:30px;gap:3px}
   .uptime-bar{border-radius:999px}
-  .area-chart{border-radius:16px!important;border-color:var(--m3c-outline-variant)!important;background:var(--m3c-surface-container-low)!important}
+  .bar-labels,.chart-axis-labels{font-size:11px}
+  .area-chart{
+    height:132px;
+    border-radius:16px!important;
+    border-color:var(--m3c-outline-variant)!important;
+  }
+  .graph-empty{min-height:70px;display:flex;align-items:center;font-size:12px}
+  .service-foot{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 16px;
+    margin-top:20px;
+    padding-top:14px;
+    border-top:1px solid var(--m3c-outline-variant);
+    font-size:11px;
+  }
   .history-overview{padding:6px 20px}
-  .history-row{padding:17px 0;border-bottom:1px solid var(--m3c-outline-variant)}
+  .history-row{
+    padding:17px 0;
+    border-bottom:1px solid var(--m3c-outline-variant);
+  }
   .history-row:last-child{border-bottom:0}
+  .history-row>div:first-child strong{font-size:14px;font-weight:600}
+  .history-row>div:first-child span,.history-stat>span{font-size:11px}
+  .history-row strong{font-size:14px;font-weight:600}
+  .history-note{margin:0;padding:0 20px 18px;font-size:11px;line-height:1.65}
+  .period-switch{border-radius:999px}
+  .period-switch button{padding:8px 12px;font-size:12px}
   .incident-list{padding:0 20px}
-  .incident-row{border-bottom:1px solid var(--m3c-outline-variant)}
+  .incident-row{
+    padding:14px 0!important;
+    border-bottom:1px solid var(--m3c-outline-variant);
+  }
   .incident-row:last-child{border-bottom:0}
+  .incident-row strong{font-size:13px;font-weight:600}
+  .incident-row p,.incident-row time{font-size:12px}
+  .empty-incidents{padding:24px 18px}
   .domain-section .domain-row{padding:20px}
-  .theme-toggle{border-radius:14px;width:40px;height:40px;background:var(--m3c-primary-container);border-color:transparent;color:var(--m3c-on-primary-container)}
-  .theme-toggle:hover{background:var(--m3c-primary-container-subtle)}
-  .hero-meta{font-size:13px;line-height:1.6}
-  .status-line{font-size:13px}
-  footer{min-height:76px;margin-top:48px}
-  .footer-brand{font-size:15px;letter-spacing:-.035em}
+  .domain-copy h3{font-size:15px;font-weight:600}
+  .domain-copy p{font-size:13px}
+  .countdown strong{font-size:30px;font-weight:600}
+  .theme-toggle{
+    width:40px;
+    height:40px;
+    border-radius:12px;
+  }
+  footer{
+    min-height:76px;
+    margin-top:48px;
+    gap:12px;
+    font-size:12px;
+  }
+  .footer-brand{font-size:15px;font-weight:700;letter-spacing:-.035em}
   @media(max-width:620px){
     .shell{width:min(100% - 32px,760px);padding:0}
-    .hero{padding-block:40px 32px}
+    main{padding-top:40px}
+    .hero{padding-bottom:26px}
     .section{padding-top:30px}
+    .section-heading{align-items:flex-start;flex-wrap:wrap}
     .service-card{padding:16px!important}
+    .history-row{grid-template-columns:minmax(0,1fr) 90px 90px;gap:9px}
+  }
+  @media(max-width:440px){
+    .shell{width:min(100% - 32px,760px);padding:0}
+    .topbar{min-height:66px}
+    main{padding-top:36px}
+    h1{font-size:32px}
+    .hero-meta{gap:7px}
+    .service-metrics{gap:8px}
+    .service-metrics strong{font-size:15px}
+    .history-row{grid-template-columns:minmax(0,1fr) 76px 76px}
+    .history-row strong{font-size:11px}
+    footer{flex-wrap:wrap;padding:16px 0}
+    footer a{margin-left:auto}
   }
   @media(prefers-reduced-motion:reduce){
     .shell,.service-card,.uptime-bar,.graph-line,.chart-area-line{animation:none!important;transition:none!important}
