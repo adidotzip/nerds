@@ -173,7 +173,6 @@
                   <div><span class="metric-label">24h uptime</span><strong>{percent(historyData?.uptime?.["24h"]?.percentage)}</strong></div>
                 </div>
                 <div class="service-foot"><span>Last checked {time(service.latest?.timestamp)}</span></div>
-
               </article>
             </Card>
           {/each}
