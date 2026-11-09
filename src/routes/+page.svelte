@@ -204,7 +204,7 @@
 
   </main>
 
-  <footer><span class="footer-brand">nerds</span><nav class="footer-links" aria-label="Legal"><a href="https://blog.adi.rest/posts/policy/privacy/">Privacy</a><a href="https://blog.adi.rest/posts/policy/tos/">Terms of Service</a><a href="/api/status">Status API ↗</a></nav></footer>
+  <footer><span class="footer-brand">nerds</span><nav class="footer-links" aria-label="Footer"><a href="https://blog.adi.rest/posts/policy/privacy/">Privacy</a><a href="https://blog.adi.rest/posts/policy/tos/">Terms of Service</a><a href="https://adi.rest/api/status">Status API ↗</a></nav></footer>
 </div>
 
 <style>
@@ -470,6 +470,9 @@
     font-size:12px;
   }
   .footer-brand{font-size:15px;font-weight:700;letter-spacing:-.035em}
+  .footer-links{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px 20px;margin-left:auto}
+  .footer-links a{margin-left:0;white-space:nowrap}
+  .footer-links a:hover{color:var(--m3c-primary)}
   @media(max-width:620px){
     .shell{width:min(100% - 32px,760px);padding:0}
     main{padding-top:40px}
