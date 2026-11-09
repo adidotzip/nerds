@@ -8,7 +8,7 @@
       "id": "adi-rest",
       "name": "adi.rest",
       "description": "Main website",
-      "url": "https://adi.rest/",
+      "url": "https://adi.rest/health",
       "expectedStatus": [
         200,
         299
@@ -16,7 +16,20 @@
       "timeoutMs": 10000,
       "connectTimeoutMs": 4000,
       "degradedMs": 1500,
-      "redirect": "follow"
+      "redirect": "follow",
+      "expectedContentType": "application/json",
+      "expectedJson": {
+        "type": "object",
+        "requiredAny": [
+          "status"
+        ]
+      },
+      "expectedJsonFields": [
+        "status"
+      ],
+      "expectedJsonValues": {
+        "status": "UP"
+      }
     },
     {
       "id": "lyrics-api",
