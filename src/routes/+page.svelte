@@ -457,7 +457,11 @@
   .theme-toggle{
     width:40px;
     height:40px;
-    border-radius:12px;
+    min-width:40px;
+    padding:0;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
   }
   footer{
     min-height:76px;
