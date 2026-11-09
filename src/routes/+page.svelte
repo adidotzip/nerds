@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
-  import { Button, Card, Chip, ConnectedButtons } from "m3-svelte";
+  import { Button, Card, ConnectedButtons } from "m3-svelte";
+  import { LineChart } from "layerchart";
   import CircularProgress from "$lib/components/CircularProgress.svelte";
 
 
@@ -11,6 +12,7 @@
   let failed = $state(false);
   let dark = $state(false);
   let selected = $state("24h");
+  let selectedSite = $state("adi-rest");
   let refreshing = $state(false);
   let initialLoading = $state(true);
 
@@ -31,31 +33,11 @@
   const time = (value) => value ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Awaiting first check";
   const latency = (value) => Number.isFinite(value) ? Math.round(value) + " ms" : "—";
   const percent = (value) => Number.isFinite(value) ? value.toFixed(2) + "%" : "Collecting data";
-  const points = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs));
-  const chartPoints = (history) => (history || []).filter((item) => Number.isFinite(item.responseTimeMs)).map((item, index) => ({
-    index: index + 1,
-    timestamp: new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    responseTimeMs: item.responseTimeMs
-  }));
-  const pathFor = (history, width = 560, height = 120) => {
-    const values = points(history);
-    if (values.length < 2) return "";
-    const max = Math.max(...values.map((p) => p.responseTimeMs), 1);
-    const coords = values.map((p, i) => ({ x: (i / (values.length - 1)) * width, y: height - (p.responseTimeMs / max) * (height - 14) - 7 }));
-    let path = `M ${coords[0].x} ${coords[0].y}`;
-    for (let i = 1; i < coords.length; i++) {
-      const prev = coords[i - 1], current = coords[i];
-      const midX = (prev.x + current.x) / 2;
-      path += ` Q ${midX} ${prev.y} ${midX} ${(prev.y + current.y) / 2}`;
-      if (i === coords.length - 1) path += ` T ${current.x} ${current.y}`;
-    }
-    return path;
-  };
-  const areaPathFor = (history, width = 560, height = 120) => {
-    const line = pathFor(history, width, height);
-    if (!line) return "";
-    return `${line} L ${width} ${height} L 0 ${height} Z`;
-  };
+  const chartData = (history) => (history || [])
+    .filter((item) => Number.isFinite(item.responseTimeMs) && Number.isFinite(Date.parse(item.timestamp)))
+    .map((item) => ({ timestamp: new Date(item.timestamp), responseTimeMs: item.responseTimeMs }));
+  const selectedService = () => data?.services?.find((service) => service.id === selectedSite) || data?.services?.[0];
+  const selectedHistory = () => histories[selectedSite];
   const bars = (history) => {
     const list = history || [];
     const bucketCount = 60;
@@ -112,7 +94,8 @@
     root.style.colorScheme = dark ? "dark" : "light";
     try { localStorage.setItem("adi-theme", dark ? "dark" : "light"); } catch {}
   }
-  async function changePeriod(period) { selected = period; await refresh(); }
+  async function changePeriod(period) { if (selected === period) return; selected = period; await refresh(); }
+  async function changeSite(serviceId) { if (selectedSite === serviceId) return; selectedSite = serviceId; await refresh(); }
 
   onMount(() => {
     dark = document.documentElement.dataset.theme === "dark";
@@ -184,27 +167,45 @@
 
 
     <section class="section history-section">
-      <div class="section-heading">
+      <div class="section-heading chart-heading">
         <div><p class="eyebrow">HISTORICAL DATA</p><h2>Response time</h2></div>
-        <div class="period-switch" aria-label="History period">
-          {#each ["24h", "7d", "30d"] as period}
-            <button class:active={selected === period} aria-pressed={selected === period} onclick={() => changePeriod(period)}>{period}</button>
-          {/each}
+        <div class="site-picker">
+          <label for="history-site">Site</label>
+          <select id="history-site" value={selectedSite} onchange={(event) => changeSite(event.currentTarget.value)}>
+            {#each (data?.services || []) as service (service.id)}
+              <option value={service.id}>{service.name}</option>
+            {/each}
+          </select>
         </div>
       </div>
-      {#if histories["adi-rest"]?.history?.length > 1}
+      <div class="chart-controls" aria-label="History period">
+        <ConnectedButtons>
+          {#each ["24h", "7d", "30d"] as period}
+            <Button size="s" variant={selected === period ? "filled" : "tonal"} onclick={() => changePeriod(period)}>{period}</Button>
+          {/each}
+        </ConnectedButtons>
+      </div>
+      {@const activeHistory = selectedHistory()}
+      {@const series = chartData(activeHistory?.history)}
+      {#if series.length > 1}
         <div class="area-chart">
-          <svg viewBox="0 0 560 132" preserveAspectRatio="none" role="img" aria-label="Recorded response time history for adi.rest">
-            <path class="chart-grid" d="M0 32H560 M0 66H560 M0 100H560"/>
-            <path class="chart-area-fill" d={areaPathFor(histories["adi-rest"].history,560,120)} />
-            <path class="chart-area-line" d={pathFor(histories["adi-rest"].history,560,120)} />
-          </svg>
+          <LineChart
+            data={series}
+            x="timestamp"
+            y="responseTimeMs"
+            axis="x"
+            curve="monotone"
+            props={{
+              xAxis: { format: (value) => new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) },
+              yAxis: { format: (value) => Math.round(value) + " ms" }
+            }}
+          />
         </div>
-        <div class="chart-axis-labels"><span>{time(histories["adi-rest"].history[0]?.timestamp)}</span><span>{time(histories["adi-rest"].history.at(-1)?.timestamp)}</span></div>
+        <div class="chart-axis-labels"><span>{time(activeHistory.history[0]?.timestamp)}</span><span>{time(activeHistory.history.at(-1)?.timestamp)}</span></div>
       {:else}
         <div class="chart-empty">Not enough recorded checks to draw a graph yet.</div>
       {/if}
-      <p class="data-note">{histories["adi-rest"]?.message || "Graph uses actual timestamped checks from MongoDB. Missing intervals are not treated as uptime."}</p>
+      <p class="data-note">{activeHistory?.message || "Graph uses actual timestamped checks from MongoDB. Missing intervals are not treated as uptime."}</p>
     </section>
 
     <section class="section incidents-section">
@@ -234,7 +235,7 @@
 
 <style>
   .shell{width:min(1040px,100%);margin:auto;padding:0 32px;animation:page-enter .28s ease both}.topbar{min-height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--m3c-outline-variant)}.brand{font-size:20px;font-weight:700;letter-spacing:-.055em}.top-actions{display:flex;align-items:center;gap:20px}.live-indicator{display:flex;align-items:center;gap:8px;color:var(--m3c-on-surface-variant);font-size:12px}.live-indicator>span{width:7px;height:7px;border-radius:50%;background:#258653}.theme-toggle{width:40px;height:40px;border:1px solid var(--m3c-outline-variant);border-radius:50%;display:grid;place-items:center;background:var(--m3c-surface-container-low);color:var(--m3c-on-surface);cursor:pointer}.theme-toggle :global(svg){width:21px;height:21px;stroke-width:1.8;transform-origin:center;fill:none;stroke:currentColor}.contrast-fill{fill:currentColor;stroke:none}.hero{padding:58px 0 42px;border-bottom:1px solid var(--m3c-outline-variant)}.status-line{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;margin-bottom:22px;text-transform:capitalize}.status-dot{width:10px;height:10px;border-radius:50%;background:var(--m3c-outline);flex-shrink:0}.status-dot.small{width:8px;height:8px}.status-dot.up{background:#258653}.status-dot.degraded,.status-dot.partial{background:#b87917}.status-dot.down{background:var(--m3c-error)}h1{font-size:clamp(36px,5.6vw,58px);font-weight:650;letter-spacing:-.055em;line-height:1.06;max-width:760px;margin:0;text-wrap:balance}.hero-meta{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:24px;color:var(--m3c-on-surface-variant);font-size:12px}.meta-divider{width:3px;height:3px;border-radius:50%;background:var(--m3c-outline)}.section{padding-top:40px}.section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:17px}.eyebrow{font-size:10px;font-weight:650;letter-spacing:.13em;color:var(--m3c-on-surface-variant);margin:0 0 7px}h2{margin:0;font-size:25px;letter-spacing:-.04em;font-weight:650}.subtle{font-size:12px;color:var(--m3c-on-surface-variant);padding-bottom:4px}.history-section{padding-top:34px}
-  .area-chart{position:relative;display:block;min-width:0;width:100%;height:132px;box-sizing:border-box;overflow:hidden;border:1px solid color-mix(in srgb,var(--m3c-outline-variant) 75%,transparent);border-radius:16px;background:transparent;padding:0}
+  .area-chart{position:relative;display:block;min-width:0;width:100%;height:220px;box-sizing:border-box;overflow:hidden;border:1px solid var(--m3c-outline-variant);border-radius:16px;background:var(--m3c-surface-container-low);padding:8px}
   .area-chart svg{display:block;width:100%;height:100%;overflow:hidden;border:0;outline:0;box-shadow:none;background:transparent}
   .chart-grid{fill:none;stroke:color-mix(in srgb,var(--m3c-outline-variant) 38%,transparent);stroke-width:1;stroke-dasharray:3 6;vector-effect:non-scaling-stroke}
   .chart-area-fill{fill:color-mix(in srgb,var(--m3c-primary) 13%,transparent);stroke:none}
@@ -242,9 +243,14 @@
   .chart-axis-labels{display:flex;justify-content:space-between;gap:12px;margin-top:6px;color:var(--m3c-on-surface-variant);font-size:10px}
   .chart-empty{height:88px;display:flex;align-items:center;color:var(--m3c-on-surface-variant);font-size:12px}
   .data-note{margin:10px 2px 0;color:var(--m3c-on-surface-variant);font-size:11px;line-height:1.6}
-  .period-switch{display:flex;gap:3px;padding:3px;border:1px solid var(--m3c-outline-variant);border-radius:999px}
-  .period-switch button{border:0;background:transparent;color:var(--m3c-on-surface-variant);padding:7px 11px;border-radius:999px;font-size:11px;cursor:pointer}
-  .period-switch button.active{background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container)}
+  .chart-controls{display:flex;justify-content:flex-end;margin:-2px 0 12px}
+  .chart-heading{align-items:center}
+  .site-picker{display:flex;align-items:center;gap:8px;color:var(--m3c-on-surface-variant);font-size:12px}
+  .site-picker select{max-width:190px;padding:9px 34px 9px 12px;border:1px solid var(--m3c-outline-variant);border-radius:999px;background:var(--m3c-surface-container-low);color:var(--m3c-on-surface);font:inherit}
+  .area-chart{height:220px}
+  .area-chart :global(svg){width:100%;height:100%;overflow:visible}
+  .area-chart :global(.lc-axis text){fill:var(--m3c-on-surface-variant)}
+  .area-chart :global(.lc-axis line),.area-chart :global(.lc-grid line){stroke:var(--m3c-outline-variant)}
   .service-list{display:grid;gap:12px}.service-card{padding:2px}.service-main{min-width:0}.service-name-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.service-name-line h3{font-size:16px;font-weight:650;margin:0;letter-spacing:-.02em}.status-word{font-size:11px;color:var(--m3c-on-surface-variant);border:1px solid var(--m3c-outline-variant);border-radius:999px;padding:3px 8px}.status-word.up{color:#258653}.status-word.degraded,.status-word.partial{color:#b87917}.status-word.down{color:var(--m3c-error)}.service-description{font-size:12px;color:var(--m3c-on-surface-variant);margin:7px 0 3px}.service-url{font-size:11px;color:var(--m3c-primary);overflow-wrap:anywhere}.service-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:20px 0 18px;margin-top:16px;border-top:1px solid var(--m3c-outline-variant)}.service-metrics>div{display:grid;gap:6px}.metric-label,.history-stat>span{font-size:11px;color:var(--m3c-on-surface-variant)}.service-metrics strong{font-size:17px;font-weight:650;font-variant-numeric:tabular-nums}.uptime-title{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--m3c-on-surface-variant);margin-bottom:9px}.uptime-bars{display:grid;grid-template-columns:repeat(60,minmax(2px,1fr));gap:3px;height:31px;border-radius:999px;overflow:hidden}.uptime-bar{border-radius:999px;background:var(--m3c-outline-variant);min-width:0;min-height:100%}.uptime-bar.unknown{background:color-mix(in srgb,var(--m3c-outline-variant) 58%,transparent)}.uptime-bar.up{background:#2f9660}.uptime-bar.degraded{background:#d39a36}.uptime-bar.down{background:#c94d54}.bar-labels{display:flex;justify-content:space-between;margin-top:7px;color:var(--m3c-on-surface-variant);font-size:10px}.latency-graph{margin-top:22px}.latency-graph svg{width:100%;height:88px;overflow:visible;border:0;outline:0;box-shadow:none;border-radius:0;clip-path:none}.graph-grid{fill:none;stroke:var(--m3c-outline-variant);stroke-width:1;stroke-dasharray:3 5}.graph-line{fill:none;stroke:var(--m3c-primary);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.graph-empty{height:72px;display:flex;align-items:center;color:var(--m3c-on-surface-variant);font-size:12px}.service-foot{display:flex;flex-wrap:wrap;gap:8px 18px;border-top:1px solid var(--m3c-outline-variant);padding-top:13px;margin-top:8px;color:var(--m3c-on-surface-variant);font-size:10px}.period-switch{display:flex;gap:3px;padding:3px;border:1px solid var(--m3c-outline-variant);border-radius:999px}.period-switch button{border:0;background:transparent;color:var(--m3c-on-surface-variant);padding:7px 11px;border-radius:999px;font-size:11px;cursor:pointer}.period-switch button.active{background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container)}.history-overview{display:grid}.history-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 150px;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--m3c-outline-variant)}.history-row:first-child{padding-top:0}.history-row:last-child{border-bottom:0;padding-bottom:0}.history-row>div:first-child{display:grid;gap:5px}.history-row strong{font-size:13px;font-weight:650}.history-row>div:first-child span{font-size:11px;color:var(--m3c-on-surface-variant)}.history-stat{display:grid;gap:5px}.history-note{margin:18px 0 0;padding-top:14px;border-top:1px solid var(--m3c-outline-variant);font-size:11px;color:var(--m3c-on-surface-variant);line-height:1.6}.incident-list{display:grid}.incident-row{display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:start;column-gap:12px;padding:18px 0;border-bottom:1px solid var(--m3c-outline-variant)}.incident-row:last-child{border:0;padding-bottom:0}.incident-mark{width:8px;height:8px;border-radius:50%;background:var(--m3c-error);margin-top:5px;flex-shrink:0}.incident-row>div{min-width:0;grid-column:2;grid-row:1}.incident-row strong{display:block;font-size:13px;line-height:1.5}.incident-row p{margin:5px 0 0;font-size:12px;line-height:1.5;color:var(--m3c-on-surface-variant);overflow-wrap:anywhere}.incident-row time{grid-column:3;grid-row:1;font-size:10px;line-height:1.5;color:var(--m3c-on-surface-variant);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.empty-incidents,.empty{padding:24px 4px;text-align:center;color:var(--m3c-on-surface-variant);font-size:12px;line-height:1.7}.empty-check{display:grid;place-items:center;width:34px;height:34px;margin:0 auto 12px;border-radius:50%;background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container);font-size:18px}.empty-incidents strong{display:block;color:var(--m3c-on-surface);font-size:13px}.empty-incidents p{max-width:460px;margin:7px auto 0}.domain-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:24px}.domain-copy h3{font-size:15px;margin:0 0 7px}.domain-copy p{font-size:12px;color:var(--m3c-on-surface-variant);line-height:1.7;margin:0 0 5px}.domain-meta{padding-top:6px}.countdown{text-align:right;min-width:100px}.countdown strong{display:block;font-size:32px;font-weight:650;letter-spacing:-.05em;font-variant-numeric:tabular-nums}.countdown span{font-size:11px;color:var(--m3c-on-surface-variant)}.loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:25px;color:var(--m3c-on-surface-variant);font-size:13px}footer{margin-top:48px;min-height:78px;border-top:1px solid var(--m3c-outline-variant);display:flex;align-items:center;gap:12px;color:var(--m3c-on-surface-variant);font-size:11px}.footer-brand{font-size:14px;font-weight:700;letter-spacing:-.04em;color:var(--m3c-on-surface)}footer a{margin-left:auto;color:var(--m3c-primary)}@media(max-width:700px){.shell{padding:0 20px}.hero{padding:44px 0 34px}.section{padding-top:32px}.service-metrics{gap:8px}.history-row{grid-template-columns:minmax(0,1fr) 105px 105px;gap:9px}.section-heading{align-items:flex-start;flex-wrap:wrap}.period-switch{max-width:100%}.period-switch button{padding:7px 9px}.domain-row{gap:12px}}@media(max-width:440px){.shell{padding:0 14px}.topbar{min-height:66px}.live-indicator{font-size:10px}.top-actions{gap:10px}.hero{padding-top:38px}h1{font-size:36px}.hero-meta{gap:7px}.service-metrics strong{font-size:15px}.service-foot{gap:7px 12px}.history-row{grid-template-columns:minmax(0,1fr) 86px 86px}.history-row strong{font-size:11px}.history-row>div:first-child span,.history-stat>span{font-size:10px}.period-switch button{font-size:10px;padding:7px}.countdown strong{font-size:26px}.countdown{min-width:70px}.uptime-bars{gap:2px;height:25px}footer{flex-wrap:wrap;padding:16px 0}footer a{margin-left:auto}}
 
   .boot-screen{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--m3c-surface);color:var(--m3c-on-surface);text-align:center;padding:24px;opacity:1;visibility:visible;transition:opacity .38s cubic-bezier(.2,.8,.2,1),visibility .38s step-end}
@@ -259,7 +265,7 @@
   @keyframes soft-pulse{0%,100%{opacity:.5}50%{opacity:1}}
   .theme-toggle{overflow:hidden;flex-shrink:0;transition:transform .2s ease,background-color .24s ease,border-color .24s ease,color .24s ease}
   .theme-toggle :global(svg){transition:opacity .24s ease}
-  .area-chart{box-sizing:border-box;height:132px;width:100%;overflow:hidden;border-radius:12px;border:1px solid color-mix(in srgb,var(--m3c-outline-variant) 75%,transparent);outline:0;box-shadow:none;background:transparent;padding:0}
+  .area-chart{position:relative;display:block;min-width:0;width:100%;height:220px;box-sizing:border-box;overflow:hidden;border:1px solid var(--m3c-outline-variant);border-radius:16px;background:var(--m3c-surface-container-low);padding:8px}
   .area-chart svg{display:block;width:100%;height:100%;overflow:hidden;border:0;outline:0;box-shadow:none;background:transparent}
   .chart-grid{display:block;fill:none;stroke:color-mix(in srgb,var(--m3c-outline-variant) 38%,transparent);stroke-width:1;stroke-dasharray:3 6;vector-effect:non-scaling-stroke}
   .chart-area-fill{stroke:none}
@@ -280,9 +286,14 @@
   .uptime-bar:hover{transform:scaleY(1.14);filter:saturate(1.15)}
   .graph-line{stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw-graph 1.1s cubic-bezier(.2,.8,.2,1) forwards;filter:drop-shadow(0 2px 2px color-mix(in srgb,var(--m3c-primary) 15%,transparent))}
   .graph-grid{display:none;stroke:none}.latency-graph svg{border:0;outline:0;box-shadow:none;border-radius:0;overflow:hidden;clip-path:none}
-  .period-switch{transition:background-color .25s ease,border-color .25s ease}
-  .period-switch button{border-radius:999px;transition:background-color .25s ease,color .25s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
-  .period-switch button.active{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--m3c-primary) 18%,transparent)}
+  .chart-controls{display:flex;justify-content:flex-end;margin:-2px 0 12px}
+  .chart-heading{align-items:center}
+  .site-picker{display:flex;align-items:center;gap:8px;color:var(--m3c-on-surface-variant);font-size:12px}
+  .site-picker select{max-width:190px;padding:9px 34px 9px 12px;border:1px solid var(--m3c-outline-variant);border-radius:999px;background:var(--m3c-surface-container-low);color:var(--m3c-on-surface);font:inherit}
+  .area-chart{height:220px}
+  .area-chart :global(svg){width:100%;height:100%;overflow:visible}
+  .area-chart :global(.lc-axis text){fill:var(--m3c-on-surface-variant)}
+  .area-chart :global(.lc-axis line),.area-chart :global(.lc-grid line){stroke:var(--m3c-outline-variant)}
   .period-switch button:not(:disabled):hover{transform:translateY(-1px)}
   .incident-row:hover{padding-left:0}
   .status-dot.up{animation:status-breathe 2.4s ease-in-out infinite}
@@ -296,7 +307,7 @@
 
 
   /* LayerChart fills its container; constrain it to the same rounded frame as the rest of the UI. */
-  .area-chart{position:relative;display:block;min-width:0;width:100%;height:132px;box-sizing:border-box;overflow:hidden;border:1px solid color-mix(in srgb,var(--m3c-outline-variant) 75%,transparent);border-radius:12px;background:transparent;padding:0}
+  .area-chart{position:relative;display:block;min-width:0;width:100%;height:220px;box-sizing:border-box;overflow:hidden;border:1px solid var(--m3c-outline-variant);border-radius:16px;background:var(--m3c-surface-container-low);padding:8px}
   .area-chart :global(svg){display:block;width:100%!important;height:100%!important;max-width:100%;overflow:hidden;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;background:transparent}
   .area-chart :global(.chart-container),.area-chart :global(.chart-wrapper){width:100%;height:100%;min-width:0;max-width:100%}
   .latency-graph{min-width:0;width:100%;overflow:hidden}
@@ -341,14 +352,13 @@
   .incidents-section .incident-row:last-child{padding-bottom:12px!important}
   .incidents-section .empty-incidents{padding:20px 4px!important}
 
-  .area-chart :global(svg text){display:none!important}
-  .area-chart :global(.lc-root-container){width:100%;height:100%;overflow:hidden;border-radius:11px}
+.area-chart :global(.lc-root-container){width:100%;height:100%;overflow:hidden;border-radius:11px}
   .area-chart :global(.lc-axis text){display:none!important}
   .area-chart :global(svg){border-radius:0!important}
   .area-chart{border-radius:16px!important;background:color-mix(in srgb,var(--m3c-surface-container-low) 40%,transparent)!important}
   .latency-graph{min-width:0;width:100%;overflow:hidden}
   .uptime-title{align-items:center}
-  @media(max-width:560px){.area-chart{height:112px}.service-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.service-metrics strong{overflow-wrap:anywhere}}
+  @media(max-width:560px){.area-chart{height:190px}.service-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.service-metrics strong{overflow-wrap:anywhere}}
 
   /* Keep incident markers, labels and timestamps on a deliberate shared grid. */
   .incident-row{grid-template-columns:8px minmax(0,1fr) auto;align-items:start;column-gap:12px}
@@ -451,11 +461,7 @@
   .uptime-bars{height:30px;gap:3px}
   .uptime-bar{border-radius:999px}
   .bar-labels,.chart-axis-labels{font-size:11px}
-  .area-chart{
-    height:132px;
-    border-radius:16px!important;
-    border-color:var(--m3c-outline-variant)!important;
-  }
+  .area-chart{position:relative;display:block;min-width:0;width:100%;height:220px;box-sizing:border-box;overflow:hidden;border:1px solid var(--m3c-outline-variant);border-radius:16px;background:var(--m3c-surface-container-low);padding:8px}
   .graph-empty{min-height:70px;display:flex;align-items:center;font-size:12px}
   .service-foot{
     display:flex;
@@ -511,6 +517,10 @@
   .footer-links a{margin-left:0;white-space:nowrap}
   .footer-links a:hover{color:var(--m3c-primary)}
   @media(max-width:620px){
+    .chart-heading{align-items:flex-start;flex-wrap:wrap}
+    .chart-controls{justify-content:flex-start}
+    .site-picker{max-width:100%}
+    .site-picker select{max-width:160px}
     .shell{width:min(100% - 32px,760px);padding:0}
     main{padding-top:40px}
     .hero{padding-bottom:26px}
@@ -551,7 +561,7 @@
     .service-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   }
   .history-section{padding-top:34px}
-  .area-chart{position:relative;display:block;min-width:0;width:100%;height:132px;box-sizing:border-box;overflow:hidden;border:1px solid color-mix(in srgb,var(--m3c-outline-variant) 75%,transparent);border-radius:16px;background:transparent;padding:0}
+  .area-chart{position:relative;display:block;min-width:0;width:100%;height:220px;box-sizing:border-box;overflow:hidden;border:1px solid var(--m3c-outline-variant);border-radius:16px;background:var(--m3c-surface-container-low);padding:8px}
   .area-chart svg{display:block;width:100%;height:100%;overflow:hidden;border:0;outline:0;box-shadow:none;background:transparent}
   .chart-grid{fill:none;stroke:color-mix(in srgb,var(--m3c-outline-variant) 38%,transparent);stroke-width:1;stroke-dasharray:3 6;vector-effect:non-scaling-stroke}
   .chart-area-fill{fill:color-mix(in srgb,var(--m3c-primary) 13%,transparent);stroke:none}
@@ -559,7 +569,12 @@
   .chart-axis-labels{display:flex;justify-content:space-between;gap:12px;margin-top:6px;color:var(--m3c-on-surface-variant);font-size:10px}
   .chart-empty{height:88px;display:flex;align-items:center;color:var(--m3c-on-surface-variant);font-size:12px}
   .data-note{margin:10px 2px 0;color:var(--m3c-on-surface-variant);font-size:11px;line-height:1.6}
-  .period-switch{display:flex;gap:3px;padding:3px;border:1px solid var(--m3c-outline-variant);border-radius:999px}
-  .period-switch button{border:0;background:transparent;color:var(--m3c-on-surface-variant);padding:7px 11px;border-radius:999px;font-size:11px;cursor:pointer}
-  .period-switch button.active{background:var(--m3c-secondary-container);color:var(--m3c-on-secondary-container)}
+  .chart-controls{display:flex;justify-content:flex-end;margin:-2px 0 12px}
+  .chart-heading{align-items:center}
+  .site-picker{display:flex;align-items:center;gap:8px;color:var(--m3c-on-surface-variant);font-size:12px}
+  .site-picker select{max-width:190px;padding:9px 34px 9px 12px;border:1px solid var(--m3c-outline-variant);border-radius:999px;background:var(--m3c-surface-container-low);color:var(--m3c-on-surface);font:inherit}
+  .area-chart{height:220px}
+  .area-chart :global(svg){width:100%;height:100%;overflow:visible}
+  .area-chart :global(.lc-axis text){fill:var(--m3c-on-surface-variant)}
+  .area-chart :global(.lc-axis line),.area-chart :global(.lc-grid line){stroke:var(--m3c-outline-variant)}
   </style>
