@@ -62,9 +62,9 @@ See [docs/arduino-pinger.md](docs/arduino-pinger.md) for board setup, Wi-Fi conf
 
 ## Scheduled checks
 
-GitHub Actions runs `.github/workflows/hourly-monitor.yml` once per hour and calls `https://ping.adi.rest/api/monitor/run`. Add the GitHub Actions repository secret `CRON_SECRET` with the same value as the Vercel Production environment variable `CRON_SECRET`. The endpoint checks each configured service, validates JSON health responses, and stores real observations in MongoDB. The freshness window is two hours so an hourly schedule does not mark healthy services stale between runs. The workflow can also be started manually from the GitHub Actions tab.
+GitHub Actions runs `.github/workflows/hourly-monitor.yml` every 5 minutes and calls `https://ping.adi.rest/api/monitor/run`. Add the GitHub Actions repository secret `CRON_SECRET` with the same value as the Vercel Production environment variable `CRON_SECRET`. The endpoint checks each configured service, validates JSON health responses, and stores real observations in MongoDB. The primary monitoring freshness window is 10 minutes, allowing a missed 5-minute run without masking an extended monitoring gap. The workflow can also be started manually from the GitHub Actions tab.
 
-Vercel Hobby Cron does not support an hourly schedule, so GitHub Actions supplies the hourly trigger while the monitoring endpoint and app run on Vercel. The Arduino remains an independent backup probe.
+Vercel Hobby Cron does not support an hourly schedule, so GitHub Actions supplies the 5-minute trigger while the monitoring endpoint and app run on Vercel. The Arduino remains an independent backup probe.
 
 ## Deployment
 
