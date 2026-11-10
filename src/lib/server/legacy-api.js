@@ -238,12 +238,13 @@ export default async function handler(req, res) {
       let result = summary(views);
       let arduinoFallback = { enabled: true, active: false, reason: "primary_checks_fresh" };
 
-      // The Arduino is a secondary source for the main adi.rest check only.
+      // The Arduino is the preferred live source for the main adi.rest check.
+      // Its 60-second probe takes precedence whenever its heartbeat is fresh.
       // Never use an expired heartbeat as evidence of current availability.
       try {
         const heartbeat = await getArduinoFallback();
         const mainService = views.find((item) => item.id === "adi-rest");
-        if (heartbeat.available && mainService?.stale) {
+        if (heartbeat.available && mainService) {
           Object.assign(mainService, {
             status: heartbeat.status,
             statusLabel: ({ up: "Operational", degraded: "Degraded", down: "Outage" })[heartbeat.status] || "Unknown",
