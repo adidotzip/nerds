@@ -1,5 +1,7 @@
 # Nerds
 
+<a href="https://madewithjev.com/free-tools/ai-slop-detector/report/nerds.adi.rest"><img src="https://madewithjev.com/free-tools/ai-slop-detector/badge/nerds.adi.rest" alt="26% AI slop, checked by Jev" height="20"></a>
+
 Nerds is the SvelteKit status and monitoring app for [adi.rest](https://adi.rest/). It displays live service health, recorded uptime, response-time history, incidents, and the Arduino UNO R4 WiFi backup probe.
 
 ## Stack
